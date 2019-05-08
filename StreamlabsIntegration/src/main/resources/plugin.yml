@@ -1,0 +1,15 @@
+name: Streamlabs-Integration
+main: io.github.sanakitty.streamlabsintegration.StreamlabsIntegration
+version: 0.1
+author: SanaKitty
+commands:
+   slirequest:
+      description: Requests access and refresh tokens.
+      usage: /slirequest
+      permission: <plugin name>.basic
+      permission-message: You don't have <permission>
+   slicheck:
+      description: Checks how many points <username> has.
+      usage: /slicheck <username>
+      permission: <plugin name>.basic
+      permission-message: You don't have <permission>

@@ -1,0 +1,7 @@
+Client ID: gpQvF31AaIZiS62Bu8OlmDv1DKOaPJgZeFURGpCG
+Client Secret: 8yXDOGrczOx7FN1QcY2YiY65fa2fKTrzN73CIdF0
+
+Authorize: https://streamlabs.com/api/v1.0/authorize?response_type=code&client_id=gpQvF31AaIZiS62Bu8OlmDv1DKOaPJgZeFURGpCG&redirect_uri=https://sanakitty.github.io/&scope=points.read+points.write
+Token: https://streamlabs.com/api/v1.0/token?grant_type=authorization_code&client_id=gpQvF31AaIZiS62Bu8OlmDv1DKOaPJgZeFURGpCG&client_secret=8yXDOGrczOx7FN1QcY2YiY65fa2fKTrzN73CIdF0&redirect_uri=https://sanakitty.github.io/&code=bmFx2BBF8RvMLwvT6hMFP929ZVhnt3QimPs4WU9D
+
+Access Token: SLBncRR1nA7Ja11CSHnUhL9sUP3KdxvYsXdspHJ8","token_type":"Bearer","expires_in":3600,"refresh_token":"StaZHTW9mLRdOyuDZlGKo6ERjd9gsyTwUkPgRZ74
