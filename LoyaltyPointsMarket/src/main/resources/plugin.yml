@@ -1,0 +1,24 @@
+name: Loyalty-Points-Market
+main: io.github.sanakitty.loyaltypointsmarket.LoyaltyPointsMarket
+version: 0.1
+api-version: 1.13
+author: SanaKitty
+permissions:
+   lpm.*:
+      description: Gives access to all lpm commands.
+      default: op
+   lpm.check:
+      description: Checks a user's KonaCoin count.
+      default: true
+   lpm.check.nonuser:
+      description: Allows the user to check someone else's KonaCoin count.
+      default: op
+   lpm.shopkeeperAdmin:
+      description: Allows the user to create a creative shop.
+      default: op
+commands:
+   lpm:
+      description: Requests access and refresh tokens.
+      usage: /<command>
+      permission: lpm.check
+      permission-message: You don't have the <permission> permission.

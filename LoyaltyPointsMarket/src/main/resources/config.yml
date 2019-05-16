@@ -1,0 +1,31 @@
+# *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*
+# Loyalty Points Market Configuration
+# Plugin written by SanaKitty
+# *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*
+# These values allow connection to the Streamlabs application that runs this
+# plugin. Do not edit!
+client-id: gpQvF31AaIZiS62Bu8OlmDv1DKOaPJgZeFURGpCG
+client-secret: 8yXDOGrczOx7FN1QcY2YiY65fa2fKTrzN73CIdF0
+redirect-uri: https://sanakitty.github.io
+access-token: SLBncRR1nA7Ja11CSHnUhL9sUP3KdxvYsXdspHJ8
+refresh-token: StaZHTW9mLRdOyuDZlGKo6ERjd9gsyTwUkPgRZ74
+# *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*
+# The channel name that the plugin should be attempting to connect to.
+channel-name: k0na_
+currency-name: Kona Coins
+unregistered-player-message: "You aren't currently registered for Loyalty Points Market on this server. Please contact an administrator to register you with your Twitch username."
+# *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*
+# SHOPKEEPER CONFIG
+# *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*
+# Determines the item given to the player that is used to spawn a Shopkeeper.
+shop-creation-item: VILLAGER_SPAWN_EGG
+# The name given to the Shopkeeper spawn item.
+shop-creation-item-name: "Spawn Shopkeeper"
+# The lore given to the Shopkeeper spawn item.
+shop-creation-item-lore: "Spawns a new Shopkeeper"
+# Determines how many inventory slots a shop should have. Multiplied by 9 (A value of 1 is 9 slots, a value of 2 is 18, etc).
+shop-inventory-size: 9
+# Determines how many shops a player should be allowed to create to begin with.
+max-shops-per-player: 2
+# Determines how far from their linked chest a Shopkeeper should be allowed to be spawned.
+max-chest-distance: 10
