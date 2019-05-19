@@ -23,6 +23,7 @@ import java.util.UUID;
 
 import javax.net.ssl.HttpsURLConnection;
 
+import org.apache.commons.lang3.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -30,14 +31,14 @@ import org.bukkit.block.Block;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.entity.Villager.Profession;
 import org.bukkit.permissions.Permission;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.slf4j.event.Level;
 
-import io.github.sanakitty.loyaltypointsmarket.events.ShopkeeperDeathEvent;
+import net.md_5.bungee.api.ChatColor;
 
 public final class LoyaltyPointsMarket extends JavaPlugin {
 	
@@ -80,26 +81,18 @@ public final class LoyaltyPointsMarket extends JavaPlugin {
 		if (getConfig().getBoolean("debug-mode"))
 			debug = true;
 		
-		pluginInstantiation();
+		Bukkit.getPluginManager().registerEvents(new LPMEventManager(this), this);
+		this.getCommand("lpm").setExecutor(new LPMCommandExecutor(this));
 		
 		access_token = getConfig().get("access-token").toString();
 		channel_name = getConfig().get("channel-name").toString();
 		
-		LoggerInfo("Debug Mode is active. Loyalty Points Market will print debug info to the console.");
+		if (debug)
+			LoggerInfo("Debug Mode is active. Loyalty Points Market will print debug info to the console.");
 	}
 	
 	public void onDisable() {
 		getLogger().info("OnDisable has been invoked!");
-	}
-	
-	void pluginInstantiation()
-	{
-		getServer().getPluginManager().registerEvents(new LPMEventManager(this), this);
-		this.getCommand("lpm").setExecutor(new LPMCommandExecutor(this));
-		
-		//Custom events
-		if (debug)
-			LoggerInfo("Setting up custom events");
 	}
 	
     public void saveCustomYml(FileConfiguration ymlConfig, File ymlFile) {
@@ -114,11 +107,22 @@ public final class LoyaltyPointsMarket extends JavaPlugin {
 	public List<Player> getAdminMap(){return adminmap;}
 	public Map<UUID, Location> chestMap = new HashMap<UUID, Location>();
 	
-	public void addToList(Player p){
+	public void addToAdminList(Player p){
 		adminmap.add(p);
 	}
 	
-	public void removeFromList(Player p) {
+	public void removeFromAdminList(Player p) {
+		adminmap.remove((Object) p);
+	}
+	
+	private List<Player> renaming = new ArrayList<Player>();
+	public List<Player> getRenameMap(){return adminmap;}
+	
+	public void addToRenaming(Player p){
+		adminmap.add(p);
+	}
+	
+	public void removeFromRenaming(Player p) {
 		adminmap.remove((Object) p);
 	}
 	
@@ -130,7 +134,7 @@ public final class LoyaltyPointsMarket extends JavaPlugin {
 	 * @param type The ShopType of the Shopkeeper. Can be Normal, or Creative.
 	 * @param chest The Chest to which the Shopkeeper is linked.
 	 */
-	public void instantiateShopkeeper(Player p, String name, ShopType type, Block chest) {
+	public void instantiateShopkeeper(Player p, ShopType type, Block chest, String profession) {
 		HashSet<Material> hash = new HashSet<Material>();
 		hash.add(Material.AIR);
 		hash.add(Material.TALL_GRASS);
@@ -139,15 +143,33 @@ public final class LoyaltyPointsMarket extends JavaPlugin {
 		Villager v = (Villager) p.getWorld().spawnEntity(target, EntityType.VILLAGER);
 		
 		UUID villagerID = v.getUniqueId();
-		String villagerName = null;
-		
-		if (name != null)
-			villagerName = name;
-		else 
-			villagerName = p.getName() + "'s Shopkeeper";
+		String villagerName = p.getName() + "'s Shopkeeper";
 		
 		v.setCustomName(villagerName);
-		v.setProfession(Profession.NITWIT);
+		switch (profession)
+		{
+			case "blacksmith":
+				v.setProfession(Profession.BLACKSMITH);
+				break;
+			case "butcher":
+				v.setProfession(Profession.BUTCHER);
+				break;
+			case "farmer":
+				v.setProfession(Profession.FARMER);
+				break;
+			case "librarian":
+				v.setProfession(Profession.LIBRARIAN);
+				break;
+			case "nitwit":
+				v.setProfession(Profession.NITWIT);
+				break;
+			case "priest":
+				v.setProfession(Profession.PRIEST);
+				break;
+			case "unset":
+				v.setProfession(Profession.NITWIT);
+				break;
+		}
 		v.setAI(false);
 		v.setInvulnerable(true);
 		
@@ -168,10 +190,22 @@ public final class LoyaltyPointsMarket extends JavaPlugin {
 		
 		logToFile(LogType.ShopkeeperSpawn, "Shopkeeper {" + villagerID + "} spawned at " + v.getLocation());
 		
-		playerData.set(p.getUniqueId().toString() + ".shopkeepers", playerData.getInt(p.getUniqueId().toString() + ".shopkeepers") + 1);
-		saveCustomYml(playerData, playerFile);
+		if (type != ShopType.creative)
+		{
+			playerData.set(p.getUniqueId().toString() + ".shopkeepers", playerData.getInt(p.getUniqueId().toString() + ".shopkeepers") + 1);
+			saveCustomYml(playerData, playerFile);
+		}
 		
 		protectedChests.set(v.getUniqueId().toString(), chest.getLocation());
+	}
+	
+	public void RenameShopkeeper(Player p, LivingEntity shopkeeper, String name)
+	{
+		shopkeeperData.set(shopkeeper.getUniqueId() + ".name", name);
+		saveCustomYml(shopkeeperData, shopkeepersFile);
+		shopkeeper.setCustomName(name);
+		p.sendMessage(ChatColor.GREEN + "Your shopkeeper has been renamed to " + name + "!");
+		removeFromRenaming(p);
 	}
 	
 	/**
@@ -221,6 +255,16 @@ public final class LoyaltyPointsMarket extends JavaPlugin {
 	public void LoggerInfo(String message)
 	{
 		Bukkit.getLogger().info("[LoyaltyPointsMarket] " + message);
+	}
+	
+	public String formatStringWithSpaces(String name, String splitter)
+	{
+		final String[] split = StringUtils.splitByWholeSeparator(name, splitter);
+        final StringBuilder buff = new StringBuilder();
+        for (final String str : split) {
+            buff.append(StringUtils.capitalize(str.toLowerCase()) + " ");
+        }
+        return buff.toString().substring(0, buff.toString().length() - 1);
 	}
 	
 	//-----------------------------------------------HTTPS Requests-----------------------------------------------//

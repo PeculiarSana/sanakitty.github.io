@@ -1,6 +1,5 @@
 package io.github.sanakitty.loyaltypointsmarket;
 
-import java.util.ArrayList;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -13,6 +12,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.metadata.FixedMetadataValue;
 
 import io.github.sanakitty.loyaltypointsmarket.LoyaltyPointsMarket.ShopType;
 import io.github.sanakitty.loyaltypointsmarket.commands.CommandAddPlayer;
@@ -47,6 +47,7 @@ public class LPMCommandExecutor implements CommandExecutor {
 								p.sendMessage(ChatColor.GOLD + "You have " + result + " KonaCoins.");
 						} else if (args.length == 3) {
 							if (p.hasPermission("lpm.check.nonuser")) {
+								@SuppressWarnings("deprecation")
 								UUID playerId = Bukkit.getPlayer(args[2]).getUniqueId();
 								String result = plugin.PointRequest(accessToken, playerId, channelName, true);
 								if (result.contains("User not found"))
@@ -64,6 +65,7 @@ public class LPMCommandExecutor implements CommandExecutor {
 						Bukkit.getLogger().log(Level.WARNING, "Please supply a username.");
 						Bukkit.getLogger().log(Level.WARNING, "Usage: lpm check <username>.");
 					} else if (args.length == 2) {
+						@SuppressWarnings("deprecation")
 						UUID playerId = Bukkit.getPlayer(args[1]).getUniqueId();
 						String result = plugin.PointRequest(accessToken, playerId, channelName, true);
 						Bukkit.getLogger().info("Twitch user " + args[1] + " has " + result + " KonaCoins.");
@@ -135,34 +137,28 @@ public class LPMCommandExecutor implements CommandExecutor {
 				{
 					NewShop(sender, args);
 				}
-				else if (args[1].equalsIgnoreCase("admin")) 
+			}
+			
+			// -------------------ADMIN--------------------
+			else if (args[0].equalsIgnoreCase("admin")) 
+			{
+				if (!(sender instanceof Player))
+					Bukkit.getLogger().warning("This command (-sk) can only be performed by a player.");
+				else 
 				{
-					if (args.length > 2) 
+					Player p = (Player) sender;
+					if (!plugin.getAdminMap().contains(p))
 					{
-						if (!(sender instanceof Player))
-							Bukkit.getLogger().warning("This command (-sk) can only be performed by a player.");
-						else 
-						{
-							Player p = (Player) sender;
-							if (args[2].equalsIgnoreCase("-sk")) 
-							{
-								p.sendMessage(ChatColor.GOLD
-										+ "Right-click a Villager to check if they are a shopkeeper, and if so, check who owns them.");
-								plugin.addToList(p);
-							} 
-							else 
-							{
-								p.sendMessage(ChatColor.GOLD + "Deactivated admin mode.");
-								plugin.removeFromList(p);
-							}
-						}
-					} 
-					else if (sender instanceof Player && plugin.getAdminMap().contains(sender)) 
-					{
-						sender.sendMessage(ChatColor.GOLD + "Exiting admin check mode.");
-						plugin.removeFromList((Player) sender);
+						p.sendMessage(ChatColor.GOLD
+								+ "Admin mode enabled.");
+						plugin.addToAdminList(p);
 					}
-				}
+					else 
+					{
+						p.sendMessage(ChatColor.GOLD + "Deactivated admin mode.");
+						plugin.removeFromAdminList(p);
+					}
+				} 
 			}
 		}
 		return true;
@@ -177,22 +173,9 @@ public class LPMCommandExecutor implements CommandExecutor {
 			{
 				int currentShopkeepers = plugin.playerData.getInt(p.getUniqueId().toString() + ".shopkeepers");
 				int shopkeeperLimit = plugin.playerData.getInt(p.getUniqueId().toString() + ".shopkeeperLimit");
-				
-				//Creative shopkeeper
-				if (args.length == 3 && args[2].equalsIgnoreCase("-c")) 
-				{
-					if (p.hasPermission("lpm.shopkeeperAdmin")) 
-					{
-						if (args.length == 4)
-							plugin.instantiateShopkeeper(p, args[1], ShopType.creative, null);
-						else
-							plugin.instantiateShopkeeper(p, null, ShopType.creative, null);
-					} 
-					else
-						p.sendMessage(ChatColor.RED + "You do not have permission to create a creative shopkeeper.");
-				} 
+ 
 				//Normal shopkeeper
-				else if (args.length == 2) {
+				if (args.length == 2) {
 					if (currentShopkeepers < shopkeeperLimit)
 					{
 						if (Material.getMaterial(plugin.getConfig().getString("shop-creation-item")) != null)
@@ -205,7 +188,6 @@ public class LPMCommandExecutor implements CommandExecutor {
 									meta.setDisplayName(plugin.getConfig().getString("shop-creation-item-name"));
 								if (plugin.getConfig().isSet("shop-creation-item-lore"))
 								{
-									ArrayList<String> lore = new ArrayList<String>();
 									meta.setLore(plugin.getConfig().getStringList("shop-creation-item-lore"));
 								}
 									
@@ -230,7 +212,55 @@ public class LPMCommandExecutor implements CommandExecutor {
 					{
 						p.sendMessage(ChatColor.RED + "You already have " + shopkeeperLimit + " Shopkeepers active.");
 					}
+				} 
+				// Creative shopkeeper
+				else if (args.length >= 3 && args[2].equalsIgnoreCase("c"))
+				{
+					if (p.hasPermission("lpm.shopkeeper.creative"))
+					{
+						if (Material.getMaterial(plugin.getConfig().getString("shop-creation-item-creative")) != null)
+						{
+							if (plugin.getConfig().isSet("shop-creation-item-creative-name") || plugin.getConfig().isSet("shop-creation-item-creative-lore"))
+							{
+								ItemStack item = new ItemStack(Material.getMaterial(plugin.getConfig().getString("shop-creation-item-creative")), 1);
+								ItemMeta meta = item.getItemMeta();
+								if (plugin.getConfig().isSet("shop-creation-item-creative-name"))
+									meta.setDisplayName(plugin.getConfig().getString("shop-creation-item-creative-name"));
+								if (plugin.getConfig().isSet("shop-creation-item-creative-lore"))
+								{
+									meta.setLore(plugin.getConfig().getStringList("shop-creation-item-creative-lore"));
+								}
+								Bukkit.getLogger().info("Length: " + args.length);
+								if (args.length == 4)
+								{
+									plugin.LoggerInfo(args[3]);
+									p.setMetadata("shopkeeperProfession", new FixedMetadataValue(plugin, args[3]));
+								}
+								else
+									p.setMetadata("shopkeeperProfession", new FixedMetadataValue(plugin, "unset"));
+								
+								item.setItemMeta(meta);
+								p.getInventory().addItem(item);
+							} 
+							else
+							{
+								p.getInventory().addItem(new ItemStack(Material.getMaterial(plugin.getConfig().getString("shop-creation-item-creative")), 1));
+							}
+							p.sendMessage(ChatColor.DARK_GREEN + "You have received a Shopkeeper creation item. Right-click with it in hand on a chest to assign" + 
+									" that chest as a shopkeepers' inventory, then right-click within " + plugin.getConfig().get("max-chest-distance") + " blocks" + 
+									"of it to spawn your Shopkeeper!");
+						}
+						else
+						{
+							p.sendMessage(ChatColor.RED + "The item name " + plugin.getConfig().getString("shop-creation-item-creative") + " is invalid." + 
+									" Please change the value given to 'shop-creation-item-creative' in this plugins' plugin.getConfig().yml file.");
+						}
+					}
+					else
+						p.sendMessage(ChatColor.RED + "You do not have the permission 'lpm.shopkeeper.creative' needed for this command.");
 				}
+				else
+					p.sendMessage(ChatColor.RED + "Unknown command.");
 			}
 			else
 			{

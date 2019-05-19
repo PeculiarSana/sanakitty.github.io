@@ -13,7 +13,7 @@ permissions:
    lpm.check.nonuser:
       description: Allows the user to check someone else's KonaCoin count.
       default: op
-   lpm.shopkeeperAdmin:
+   lpm.shopkeeper.creative:
       description: Allows the user to create a creative shop.
       default: op
 commands:

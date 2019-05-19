@@ -23,6 +23,12 @@ shop-creation-item: VILLAGER_SPAWN_EGG
 shop-creation-item-name: "Spawn Shopkeeper"
 # The lore given to the Shopkeeper spawn item.
 shop-creation-item-lore: "Spawns a new Shopkeeper"
+# Determines the item given to the player that is used to spawn a creative Shopkeeper.
+shop-creation-item-creative: ZOMBIE_VILLAGER_SPAWN_EGG
+# The name given to the creative Shopkeeper spawn item.
+shop-creation-item-creative-name: "Spawn Creative Shopkeeper"
+# The lore given to the creative Shopkeeper spawn item.
+shop-creation-item-creative-lore: "Spawns a new Creative Shopkeeper"
 # Determines how many inventory slots a shop should have. Multiplied by 9 (A value of 1 is 9 slots, a value of 2 is 18, etc).
 shop-inventory-size: 9
 # Determines how many shops a player should be allowed to create to begin with.

@@ -9,18 +9,22 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.Villager;
+import org.bukkit.entity.Villager.Profession;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -35,6 +39,8 @@ import io.github.sanakitty.loyaltypointsmarket.Inventories.ShopkeeperEditHolder;
 import io.github.sanakitty.loyaltypointsmarket.Inventories.ShopkeeperItemPriceHolder;
 import io.github.sanakitty.loyaltypointsmarket.Inventories.ShopkeeperPricesHolder;
 import io.github.sanakitty.loyaltypointsmarket.Inventories.ShopkeeperShopHolder;
+import io.github.sanakitty.loyaltypointsmarket.events.ShopkeeperAdminDamageEvent;
+import io.github.sanakitty.loyaltypointsmarket.events.ShopkeeperAdminInteractEvent;
 import io.github.sanakitty.loyaltypointsmarket.events.ShopkeeperDeathEvent;
 import net.md_5.bungee.api.ChatColor;
 
@@ -49,7 +55,7 @@ public class LPMEventManager implements Listener {
 	@EventHandler
 	public void onVillagerInventoryOpen(InventoryOpenEvent e) {
 		if (e.getInventory().getType() == InventoryType.MERCHANT && plugin.shopkeeperData
-				.contains(((Villager) e.getInventory().getHolder()).getUniqueId().toString())) {
+				.contains(((Entity) e.getInventory().getHolder()).getUniqueId().toString())) {
 			e.setCancelled(true);
 		}
 	}
@@ -69,52 +75,48 @@ public class LPMEventManager implements Listener {
 		
 		if (e.getRightClicked().getType() == EntityType.VILLAGER && e.getHand().equals(EquipmentSlot.HAND) && plugin.shopkeeperData.contains(e.getRightClicked().getUniqueId().toString())) 
 		{
-			Villager v = (Villager) e.getRightClicked();
-			p.setMetadata("shopkeeperID", new FixedMetadataValue(plugin, v.getUniqueId()));
-			p.setMetadata("shopkeeperName", new FixedMetadataValue(plugin, v.getCustomName()));
+			LivingEntity ent = (LivingEntity) e.getRightClicked();
+			UUID ownerUUID = UUID.fromString(plugin.shopkeeperData.getString(ent.getUniqueId() + ".owner"));
+			p.setMetadata("shopkeeperID", new FixedMetadataValue(plugin, ent.getUniqueId()));
+			p.setMetadata("shopkeeperName", new FixedMetadataValue(plugin, ent.getCustomName()));
 
 			// Code to run if the player is currently debugging
 			if (plugin.getAdminMap().contains((Object) p)) 
 			{
-				p.sendMessage(ChatColor.GOLD + "Shopkeeper data:");
-				p.sendMessage(ChatColor.GOLD + "  id: " + ChatColor.RESET + v.getUniqueId());
-				p.sendMessage(ChatColor.GOLD + "  name: " + ChatColor.RESET + plugin.shopkeeperData.get(v.getUniqueId() + ".name"));
-				p.sendMessage(ChatColor.GOLD + "  owner: " + ChatColor.RESET + plugin.shopkeeperData.get(v.getUniqueId() + ".owner"));
-				p.sendMessage(ChatColor.GOLD + "  type: " + ChatColor.RESET + plugin.shopkeeperData.get(v.getUniqueId() + ".type"));
-				p.sendMessage(ChatColor.GOLD + "  location: ");
-				p.sendMessage(ChatColor.GOLD + "    world: " + ChatColor.RESET + plugin.shopkeeperData.get(v.getUniqueId() + ".location.world"));
-				p.sendMessage(ChatColor.GOLD + "    x: " + ChatColor.RESET + plugin.shopkeeperData.get(v.getUniqueId() + ".location.x"));
-				p.sendMessage(ChatColor.GOLD + "    y: " + ChatColor.RESET + plugin.shopkeeperData.get(v.getUniqueId() + ".location.y"));
-				p.sendMessage(ChatColor.GOLD + "    z: " + ChatColor.RESET + plugin.shopkeeperData.get(v.getUniqueId() + ".location.z"));
-				p.sendMessage(ChatColor.GOLD + "  chest-location: ");
-				p.sendMessage(ChatColor.GOLD + "    world: " + ChatColor.RESET + plugin.shopkeeperData.get(v.getUniqueId() + ".chest-location.world"));
-				p.sendMessage(ChatColor.GOLD + "    x: " + ChatColor.RESET + plugin.shopkeeperData.get(v.getUniqueId() + ".chest-location.x"));
-				p.sendMessage(ChatColor.GOLD + "    y: " + ChatColor.RESET + plugin.shopkeeperData.get(v.getUniqueId() + ".chest-location.y"));
-				p.sendMessage(ChatColor.GOLD + "    z: " + ChatColor.RESET + plugin.shopkeeperData.get(v.getUniqueId() + ".chest-location.z"));
-				
-
-			
-			} // Code to run to edit the shopkeeper
-			else if (p.isSneaking() && p.getUniqueId().compareTo(UUID.fromString(plugin.shopkeeperData.get(v.getUniqueId() + ".owner").toString())) == 0) 
+				ShopkeeperAdminInteractEvent adminInteract = new ShopkeeperAdminInteractEvent(plugin, ent, p);
+				Bukkit.getServer().getPluginManager().callEvent(adminInteract);
+			} 
+			// Code to run to edit the shopkeeper
+			else if (p.isSneaking() && p.getUniqueId().compareTo(UUID.fromString(plugin.shopkeeperData.get(ent.getUniqueId() + ".owner").toString())) == 0) 
 			{
-				// Normal shopkeeper edit inventory
-				if (plugin.shopkeeperData.getString(v.getUniqueId() + ".type").equalsIgnoreCase("normal"))
+				// Adds a one tick delay to prevent issues
+				Bukkit.getServer().getScheduler().runTaskLater(plugin, new Runnable()
 				{
-					// Adds a one tick delay to prevent issues
-					Bukkit.getServer().getScheduler().runTaskLater(plugin, new Runnable()
+					public void run() 
 					{
-						public void run() 
-						{
-							ShopkeeperEditOpen(p, "Editing Shopkeeper");
-						}
-					}, 1);
-
-				}
-			
-			} //Code to run if the player is just opening the shop to buy
-			else if (!p.isSneaking()) 
+						ShopkeeperEditOpen(p, "Editing Shopkeeper");
+					}
+				}, 1);
+			}
+			// Code to run to edit creative shopkeeper
+			else if (p.isSneaking() && p.hasPermission("lpm.shopkeeper.creative")) 
 			{
-				Inventory inv = Bukkit.createInventory(new ShopkeeperShopHolder(), 27, v.getCustomName());
+				// Adds a one tick delay to prevent issues
+				Bukkit.getServer().getScheduler().runTaskLater(plugin, new Runnable()
+				{
+					public void run() 
+					{
+						ShopkeeperEditOpen(p, "Editing Creative Shopkeeper");
+					}
+				}, 1);
+			}
+			
+			// Code to run if the player is just opening the shop to buy
+			// Checks that the Player isn't sneaking, and isn't the owner OR is on the adminMap before allowing them to view the shop
+			else if (!p.isSneaking() && (p.getUniqueId().compareTo(ownerUUID) != 0 || plugin.getAdminMap().contains(p) || 					plugin.shopkeeperData.getString(ent.getUniqueId() + ".type").equalsIgnoreCase("creative")))
+			{
+				plugin.LoggerInfo("Test");
+				Inventory inv = Bukkit.createInventory(new ShopkeeperShopHolder(), 27, ent.getCustomName());
 				// Adds a one tick delay to prevent issues
 				Bukkit.getServer().getScheduler().runTaskLater(plugin, new Runnable() 
 				{
@@ -125,18 +127,20 @@ public class LPMEventManager implements Listener {
 				}, 1);
 
 				Location loc = new Location(p.getWorld(),
-						Float.parseFloat(plugin.shopkeeperData.get(v.getUniqueId() + ".chest-location.x").toString()),
-						Float.parseFloat(plugin.shopkeeperData.get(v.getUniqueId() + ".chest-location.y").toString()),
-						Float.parseFloat(plugin.shopkeeperData.get(v.getUniqueId() + ".chest-location.z").toString()));
+						Float.parseFloat(plugin.shopkeeperData.get(ent.getUniqueId() + ".chest-location.x").toString()),
+						Float.parseFloat(plugin.shopkeeperData.get(ent.getUniqueId() + ".chest-location.y").toString()),
+						Float.parseFloat(plugin.shopkeeperData.get(ent.getUniqueId() + ".chest-location.z").toString()));
 				
 				// Instantiates the shopkeeper's inventory based on his linked chest
-				if(v.getWorld().getBlockAt(loc).getType()==Material.CHEST)
+				if(ent.getWorld().getBlockAt(loc).getType() == Material.CHEST)
 				{
-					Chest chest = (Chest) v.getWorld().getBlockAt(loc).getState();
-					for (int i = 0; i < chest.getBlockInventory().getSize(); i++) {
+					Chest chest = (Chest) ent.getWorld().getBlockAt(loc).getState();
+					for (int i = 0; i < chest.getBlockInventory().getSize(); i++) 
+					{
 						ItemStack iS = chest.getBlockInventory().getItem(i);
-						String ymlLoc = v.getUniqueId() + ".inventory." + i;
-						if (iS != null) {
+						String ymlLoc = ent.getUniqueId() + ".inventory." + i;
+						if (iS != null) 
+						{
 							if (!plugin.shopkeeperData.isSet(ymlLoc + ".price")) 
 							{
 								plugin.shopkeeperData.set(ymlLoc + ".price", 0);
@@ -175,14 +179,14 @@ public class LPMEventManager implements Listener {
 
 	ItemStack editedItem = null;
 
-	/*
-	 * @EventHandler public void inventoryMoveEvent(InventoryMoveItemEvent e) { if
-	 * (e.getDestination() instanceof ShopkeeperShopHolder || e.getDestination()
-	 * instanceof ShopkeeperEditHolder || e.getDestination() instanceof
-	 * ShopkeeperPricesHolder || e.getDestination() instanceof
-	 * ShopkeeperItemPriceHolder || e.getDestination() instanceof
-	 * ShopkeeperShopHolder) { e.setCancelled(true); } }
-	 */
+	
+	  @EventHandler public void inventoryMoveEvent(InventoryMoveItemEvent e) { if
+	  (e.getDestination() instanceof ShopkeeperShopHolder || e.getDestination()
+	  instanceof ShopkeeperEditHolder || e.getDestination() instanceof
+	  ShopkeeperPricesHolder || e.getDestination() instanceof
+	  ShopkeeperItemPriceHolder || e.getDestination() instanceof
+	  ShopkeeperShopHolder) { e.setCancelled(true); } }
+	 
 
 	@EventHandler
 	public void onInventoryClick(InventoryClickEvent e) {
@@ -192,13 +196,10 @@ public class LPMEventManager implements Listener {
 		}
 
 		Player p = (Player) e.getWhoClicked();
-		String twitchName = plugin.playerData.get(p.getUniqueId().toString() + ".twitch").toString();
-		Villager v = null;
-		if (true) {
-			for (Entity ent : p.getWorld().getEntities())
-				if (ent.getUniqueId().compareTo(UUID.fromString(p.getMetadata("shopkeeperID").get(0).asString())) == 0)
-					v = (Villager) ent;
-		}
+		Entity ent = null;
+			for (Entity searchedEntity : p.getWorld().getEntities())
+				if (searchedEntity.getUniqueId().compareTo(UUID.fromString(p.getMetadata("shopkeeperID").get(0).asString())) == 0)
+					ent = searchedEntity;
 		
 		if (e.getClickedInventory().getHolder() instanceof ShopkeeperShopHolder ||
 			 e.getClickedInventory().getHolder() instanceof ShopkeeperEditHolder ||
@@ -207,13 +208,14 @@ public class LPMEventManager implements Listener {
 			 e.getClickedInventory().getHolder() instanceof ShopkeeperShopHolder) 
 		 {
 			 e.setCancelled(true);
-		 }
+		 } else
+			 return;
 		
 		// ~~~~ShopkeeperShopHolder~~~~
 		if (e.getClickedInventory().getHolder() instanceof ShopkeeperShopHolder) {
 			if (e.getCurrentItem() != null) {
 				int price = plugin.shopkeeperData
-						.getInt(v.getUniqueId().toString() + ".inventory." + e.getSlot() + ".price");
+						.getInt(ent.getUniqueId().toString() + ".inventory." + e.getSlot() + ".price");
 				if (Integer.parseInt(plugin.PointRequest(plugin.access_token,
 						p.getUniqueId(), plugin.getConfig().getString("channel-name"), true)) >= price) 
 				{
@@ -224,15 +226,18 @@ public class LPMEventManager implements Listener {
 							+ " KonaCoins left.");
 					p.getInventory()
 							.addItem(new ItemStack(e.getCurrentItem().getType(), e.getCurrentItem().getAmount()));
+					String itemName = e.getCurrentItem().getItemMeta().hasDisplayName() ? e.getCurrentItem().getItemMeta().getDisplayName() : 										plugin.formatStringWithSpaces(e.getCurrentItem().getType().getKey().getKey(), "_");
+					p.sendMessage(ChatColor.GREEN + "You've purchased 1x " + itemName + " for " + 
+							price + " " + plugin.getConfig().get("currency-name") + "!");
 					plugin.logToFile(LogType.Points, p.getName() + " {" + p.getUniqueId() + "} spent " + price + " "
 							+ plugin.getConfig().get("currency-name"));
 
 					// Point addition for owner
-					UUID id = UUID.fromString(plugin.shopkeeperData
-							.get(v.getUniqueId().toString() + ".owner").toString());
-					if (plugin.shopkeeperData
-							.get(v.getUniqueId().toString() + ".type") != ShopType.creative) 
+					if (!plugin.shopkeeperData.getString(ent.getUniqueId() + ".type").equalsIgnoreCase("creative"))
 					{
+						plugin.LoggerInfo(plugin.shopkeeperData.getString(ent.getUniqueId() + ".type"));
+						UUID id = UUID.fromString(plugin.shopkeeperData
+								.get(ent.getUniqueId().toString() + ".owner").toString());
 						plugin.PointAdd(plugin.access_token, id, plugin.channel_name, price);
 					}
 				}
@@ -248,13 +253,16 @@ public class LPMEventManager implements Listener {
 			if (e.getCurrentItem().getType() == Material.GOLD_NUGGET) {
 				ShopkeeperPricesOpen(p);
 				// RENAME the shopkeeper
-			} else if (e.getCurrentItem().getType() == Material.INK_SAC) {
+			} else if (e.getCurrentItem().getType() == Material.NAME_TAG) {
 				p.closeInventory();
-				p.sendMessage(ChatColor.GOLD + "This feature is not yet implemented. Sorry!");
+				p.sendMessage(ChatColor.GOLD + "Please type in a new name for your shopkeeper.");
+				plugin.addToRenaming(p);
+				p.setMetadata("shopkeeper", new FixedMetadataValue(plugin, ent));
 				// DELETE the shopkeeper
 			} else if (e.getCurrentItem().getType() == Material.FIRE_CHARGE) {
-				v.setInvulnerable(false);
-				v.damage(9000);
+				ent.setInvulnerable(false);
+				LivingEntity le = (LivingEntity) ent;
+				le.damage(9000);
 				p.closeInventory();
 			}
 		}
@@ -264,7 +272,7 @@ public class LPMEventManager implements Listener {
 				ShopkeeperEditOpen(p, "Editing Shopkeeper");
 			} else {
 				ItemStack item = e.getCurrentItem();
-				ShopkeeperEditPriceOpen(p, item, plugin.shopkeeperData.getString(v.getUniqueId().toString() + ".inventory." + p.getMetadata("slotID") + ".price"));
+				ShopkeeperEditPriceOpen(p, item, plugin.shopkeeperData.getString(ent.getUniqueId().toString() + ".inventory." + p.getMetadata("slotID") + ".price"));
 				p.setMetadata("slotID", new FixedMetadataValue(plugin, e.getSlot()));
 				editedItem = item;
 			}
@@ -272,31 +280,31 @@ public class LPMEventManager implements Listener {
 		// ~~~~ShopkeeperItemPriceHolder~~~~
 		if (e.getClickedInventory().getHolder() instanceof ShopkeeperItemPriceHolder) {
 			String slotNum = p.getMetadata("slotID").get(0).asString();
-			String ymlPrice = v.getUniqueId().toString() + ".inventory." + slotNum + ".price";
+			String ymlPrice = ent.getUniqueId().toString() + ".inventory." + slotNum + ".price";
 			if (e.getCurrentItem().getType() == Material.IRON_BLOCK) {
 				plugin.shopkeeperData.set(ymlPrice, plugin.shopkeeperData.getInt(ymlPrice) + 1);
 				ShopkeeperEditPriceOpen(p, editedItem, plugin.shopkeeperData
-						.getString(v.getUniqueId().toString() + ".inventory." + slotNum + ".price"));
+						.getString(ent.getUniqueId().toString() + ".inventory." + slotNum + ".price"));
 			} else if (e.getCurrentItem().getType() == Material.GOLD_BLOCK) {
 				plugin.shopkeeperData.set(ymlPrice, plugin.shopkeeperData.getInt(ymlPrice) + 10);
 				ShopkeeperEditPriceOpen(p, editedItem, plugin.shopkeeperData
-						.getString(v.getUniqueId().toString() + ".inventory." + slotNum + ".price"));
+						.getString(ent.getUniqueId().toString() + ".inventory." + slotNum + ".price"));
 			} else if (e.getCurrentItem().getType() == Material.DIAMOND_BLOCK) {
 				plugin.shopkeeperData.set(ymlPrice, plugin.shopkeeperData.getInt(ymlPrice) + 100);
 				ShopkeeperEditPriceOpen(p, editedItem, plugin.shopkeeperData
-						.getString(v.getUniqueId().toString() + ".inventory." + slotNum + ".price"));
+						.getString(ent.getUniqueId().toString() + ".inventory." + slotNum + ".price"));
 			} else if (e.getCurrentItem().getType() == Material.STONE) {
 				plugin.shopkeeperData.set(ymlPrice, plugin.shopkeeperData.getInt(ymlPrice) - 1);
 				ShopkeeperEditPriceOpen(p, editedItem, plugin.shopkeeperData
-						.getString(v.getUniqueId().toString() + ".inventory." + slotNum + ".price"));
+						.getString(ent.getUniqueId().toString() + ".inventory." + slotNum + ".price"));
 			} else if (e.getCurrentItem().getType() == Material.OBSIDIAN) {
 				plugin.shopkeeperData.set(ymlPrice, plugin.shopkeeperData.getInt(ymlPrice) - 10);
 				ShopkeeperEditPriceOpen(p, editedItem, plugin.shopkeeperData
-						.getString(v.getUniqueId().toString() + ".inventory." + slotNum + ".price"));
+						.getString(ent.getUniqueId().toString() + ".inventory." + slotNum + ".price"));
 			} else if (e.getCurrentItem().getType() == Material.BEDROCK) {
 				plugin.shopkeeperData.set(ymlPrice, plugin.shopkeeperData.getInt(ymlPrice) - 100);
 				ShopkeeperEditPriceOpen(p, editedItem, plugin.shopkeeperData
-						.getString(v.getUniqueId().toString() + ".inventory." + slotNum + ".price"));
+						.getString(ent.getUniqueId().toString() + ".inventory." + slotNum + ".price"));
 			} else if (e.getCurrentItem().getType() == Material.BARRIER) {
 				ShopkeeperPricesOpen(p);
 			}
@@ -312,8 +320,8 @@ public class LPMEventManager implements Listener {
 				Arrays.asList("Removes this shopkeeper."));
 		ItemStack priceAdjust = newCustomItemStack(Material.GOLD_NUGGET, 1, "Adjust Prices",
 				Arrays.asList("Allows you to adjust sale prices."));
-		ItemStack rename = newCustomItemStack(Material.INK_SAC, 1, "Rename Shopkeeper", Arrays.asList(
-				"Allows you to rename this shopkeeper.", ChatColor.RED + "This feature is not yet implemented!"));
+		ItemStack rename = newCustomItemStack(Material.NAME_TAG, 1, "Rename Shopkeeper", 
+				Arrays.asList("Allows you to rename this shopkeeper."));
 
 		inv.setItem(3, priceAdjust);
 		inv.setItem(4, rename);
@@ -375,14 +383,46 @@ public class LPMEventManager implements Listener {
 		Action action = e.getAction();
 		ItemStack item = e.getItem();
 
-		if (e.getItem() != null && item.getType() == Material.VILLAGER_SPAWN_EGG) {
+		if (e.getItem() != null && item.getType() == Material.getMaterial(plugin.getConfig().getString("shop-creation-item"))) 
+		{
 			e.setCancelled(true);
-			if (p.hasMetadata("shopkeepChestLoc")) {
-				if (action == Action.RIGHT_CLICK_AIR) {
+			if (p.hasMetadata("shopkeepChestLoc")) 
+			{
+				if (action == Action.RIGHT_CLICK_AIR) 
+				{
 					p.sendMessage(ChatColor.RED + "Click on a block with this egg to spawn your Shopkeeper.");
+				} else if (action == Action.RIGHT_CLICK_BLOCK) 
+				{
+					plugin.instantiateShopkeeper(p, ShopType.normal,
+							(Block) p.getMetadata("shopkeepChestLoc").get(0).value(), "Nitwit");
+					p.removeMetadata("shopkeepChestLoc", plugin);
+					item.setAmount(0);
+				}
+			} else {
+				if (action == Action.RIGHT_CLICK_AIR) {
+					p.sendMessage(ChatColor.RED + "Click on a chest to assign it as your Shopkeepers' inventory.");
 				} else if (action == Action.RIGHT_CLICK_BLOCK) {
-					plugin.instantiateShopkeeper(p, null, ShopType.normal,
-							(Block) p.getMetadata("shopkeepChestLoc").get(0).value());
+					if (e.getClickedBlock().getType() == Material.CHEST) {
+						p.setMetadata("shopkeepChestLoc", new FixedMetadataValue(plugin, e.getClickedBlock()));
+						p.sendMessage(ChatColor.GREEN + "Chest assigned as Shopkeeper's inventory.");
+					} else {
+						p.sendMessage(ChatColor.RED + "Click on a chest to assign it as your Shopkeepers' inventory.");
+					}
+				}
+			}
+		} 
+		else if (e.getItem() != null && item.getType() == Material.getMaterial(plugin.getConfig().getString("shop-creation-item-creative"))) 
+		{
+			e.setCancelled(true);
+			if (p.hasMetadata("shopkeepChestLoc")) 
+			{
+				if (action == Action.RIGHT_CLICK_AIR) 
+				{
+					p.sendMessage(ChatColor.RED + "Click on a block with this egg to spawn your Shopkeeper.");
+				} else if (action == Action.RIGHT_CLICK_BLOCK) 
+				{
+					plugin.instantiateShopkeeper(p, ShopType.creative, (Block) p.getMetadata("shopkeepChestLoc").get(0).value(), 
+							p.getMetadata("shopkeeperProfession").get(0).value().toString());
 					p.removeMetadata("shopkeepChestLoc", plugin);
 					item.setAmount(0);
 				}
@@ -403,10 +443,25 @@ public class LPMEventManager implements Listener {
 
 	@EventHandler
 	public void onEntityDeath(EntityDeathEvent e) {
-		if (plugin.shopkeeperData.contains(e.getEntity().getUniqueId().toString())) 
+		if (plugin.shopkeeperData.contains(e.getEntity().getUniqueId().toString()))
 		{
 			ShopkeeperDeathEvent deathEvent = new ShopkeeperDeathEvent(plugin, e.getEntity());
 			Bukkit.getServer().getPluginManager().callEvent(deathEvent);
+		}
+	}
+	
+	@EventHandler
+	public void onEntityDamageEntity(EntityDamageByEntityEvent e)
+	{
+		if (e.getDamager() instanceof Player && e.getEntity() instanceof LivingEntity)
+		{
+			LivingEntity entity = (LivingEntity) e.getEntity();
+			Player p = (Player) e.getDamager();
+			if (plugin.getAdminMap().contains(p) && plugin.shopkeeperData.isSet(e.getEntity().getUniqueId().toString()))
+			{
+				ShopkeeperAdminDamageEvent event = new ShopkeeperAdminDamageEvent(plugin, entity, p);
+				Bukkit.getServer().getPluginManager().callEvent(event);
+			}
 		}
 	}
 	
@@ -419,10 +474,66 @@ public class LPMEventManager implements Listener {
 			plugin.LoggerInfo("Shopkeeper {" + entity.getUniqueId() + "} was removed");
 		}
 		plugin.logToFile(LogType.ShopkeeperRemove, "Shopkeeper {" + entity.getUniqueId() + "} was removed");
-		plugin.playerData.set(e.getOwnerUUID().toString() + ".shopkeepers", plugin.playerData.getInt(e.getOwnerUUID().toString() + ".shopkeepers") - 1);
-		plugin.saveCustomYml(plugin.playerData, plugin.playerFile);
+		if (!plugin.shopkeeperData.getString(entity.getUniqueId() + ".type").equalsIgnoreCase("creative"))
+		{
+			plugin.playerData.set(e.getOwnerUUID().toString() + ".shopkeepers", plugin.playerData.getInt(e.getOwnerUUID().toString() + ".shopkeepers") - 1);
+			plugin.saveCustomYml(plugin.playerData, plugin.playerFile);
+		}
 		
 		plugin.shopkeeperData.set(entity.getUniqueId().toString(), null);
 		plugin.saveCustomYml(plugin.shopkeeperData, plugin.shopkeepersFile);
+	}
+	
+	@EventHandler
+	public void shopkeeperAdminDamage(ShopkeeperAdminDamageEvent e)
+	{
+		Player p = e.getPlayer();
+		LivingEntity ent = e.getEntity();
+		p.sendMessage(ChatColor.GOLD + "Shopkeeper data:");
+		p.sendMessage(ChatColor.GOLD + "  id: " + ChatColor.RESET + ent.getUniqueId());
+		p.sendMessage(ChatColor.GOLD + "  name: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".name"));
+		p.sendMessage(ChatColor.GOLD + "  owner: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".owner"));
+		p.sendMessage(ChatColor.GOLD + "  type: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".type"));
+		p.sendMessage(ChatColor.GOLD + "  location: ");
+		p.sendMessage(ChatColor.GOLD + "    world: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".location.world"));
+		p.sendMessage(ChatColor.GOLD + "    x: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".location.x"));
+		p.sendMessage(ChatColor.GOLD + "    y: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".location.y"));
+		p.sendMessage(ChatColor.GOLD + "    z: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".location.z"));
+		p.sendMessage(ChatColor.GOLD + "  chest-location: ");
+		p.sendMessage(ChatColor.GOLD + "    world: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".chest-location.world"));
+		p.sendMessage(ChatColor.GOLD + "    x: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".chest-location.x"));
+		p.sendMessage(ChatColor.GOLD + "    y: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".chest-location.y"));
+		p.sendMessage(ChatColor.GOLD + "    z: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".chest-location.z"));
+	}
+	
+	@EventHandler
+	public void shopkeeperAdminClick(ShopkeeperAdminInteractEvent e)
+	{
+		if (e.getPlayer().isSneaking())
+		{
+			// Normal shopkeeper edit inventory
+			if (plugin.shopkeeperData.getString(e.getEntity().getUniqueId() + ".type").equalsIgnoreCase("normal"))
+			{
+				// Adds a one tick delay to prevent issues
+				Bukkit.getServer().getScheduler().runTaskLater(plugin, new Runnable()
+				{
+					public void run() 
+					{
+						ShopkeeperEditOpen(e.getPlayer(), "Editing Shopkeeper");
+					}
+				}, 1);
+			}
+		}
+	}
+	
+	@EventHandler
+	public void chatMessageSent(AsyncPlayerChatEvent e)
+	{
+		if (plugin.getRenameMap().contains(e.getPlayer()))
+		{
+			e.setCancelled(true);
+			plugin.RenameShopkeeper(e.getPlayer(), (LivingEntity) e.getPlayer().getMetadata("shopkeeper").get(0).value(), e.getMessage());
+			e.getPlayer().removeMetadata("shopkeeper", plugin);
+		}
 	}
 }
