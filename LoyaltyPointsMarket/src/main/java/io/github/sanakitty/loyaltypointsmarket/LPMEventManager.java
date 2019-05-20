@@ -19,6 +19,7 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
@@ -196,10 +197,6 @@ public class LPMEventManager implements Listener {
 		}
 
 		Player p = (Player) e.getWhoClicked();
-		Entity ent = null;
-			for (Entity searchedEntity : p.getWorld().getEntities())
-				if (searchedEntity.getUniqueId().compareTo(UUID.fromString(p.getMetadata("shopkeeperID").get(0).asString())) == 0)
-					ent = searchedEntity;
 		
 		if (e.getClickedInventory().getHolder() instanceof ShopkeeperShopHolder ||
 			 e.getClickedInventory().getHolder() instanceof ShopkeeperEditHolder ||
@@ -211,46 +208,64 @@ public class LPMEventManager implements Listener {
 		 } else
 			 return;
 		
+		Entity ent = null;
+		for (Entity searchedEntity : p.getWorld().getEntities())
+			if (searchedEntity.getUniqueId().compareTo(UUID.fromString(p.getMetadata("shopkeeperID").get(0).asString())) == 0)
+				ent = searchedEntity;
+		
 		// ~~~~ShopkeeperShopHolder~~~~
 		if (e.getClickedInventory().getHolder() instanceof ShopkeeperShopHolder) {
-			if (e.getCurrentItem() != null) {
-				int price = plugin.shopkeeperData
-						.getInt(ent.getUniqueId().toString() + ".inventory." + e.getSlot() + ".price");
-				if (Integer.parseInt(plugin.PointRequest(plugin.access_token,
-						p.getUniqueId(), plugin.getConfig().getString("channel-name"), true)) >= price) 
-				{
-					// Point subtraction from customer
-					plugin.PointSubtract(plugin.access_token, p.getUniqueId(), plugin.channel_name, price);
-					p.sendMessage("You have "
-							+ plugin.PointRequest(plugin.access_token, p.getUniqueId(), plugin.channel_name, true)
-							+ " KonaCoins left.");
-					p.getInventory()
-							.addItem(new ItemStack(e.getCurrentItem().getType(), e.getCurrentItem().getAmount()));
-					String itemName = e.getCurrentItem().getItemMeta().hasDisplayName() ? e.getCurrentItem().getItemMeta().getDisplayName() : 										plugin.formatStringWithSpaces(e.getCurrentItem().getType().getKey().getKey(), "_");
-					p.sendMessage(ChatColor.GREEN + "You've purchased 1x " + itemName + " for " + 
-							price + " " + plugin.getConfig().get("currency-name") + "!");
-					plugin.logToFile(LogType.Points, p.getName() + " {" + p.getUniqueId() + "} spent " + price + " "
-							+ plugin.getConfig().get("currency-name"));
-
-					// Point addition for owner
-					if (!plugin.shopkeeperData.getString(ent.getUniqueId() + ".type").equalsIgnoreCase("creative"))
+			if (plugin.playerData.isSet(p.getUniqueId().toString()))
+			{
+				if (e.getCurrentItem().getType() != Material.AIR) {
+					int price = plugin.shopkeeperData
+							.getInt(ent.getUniqueId().toString() + ".inventory." + e.getSlot() + ".price");
+					if (Integer.parseInt(plugin.PointRequest(plugin.access_token,
+							p.getUniqueId(), plugin.getConfig().getString("channel-name"), true)) >= price) 
 					{
-						plugin.LoggerInfo(plugin.shopkeeperData.getString(ent.getUniqueId() + ".type"));
-						UUID id = UUID.fromString(plugin.shopkeeperData
-								.get(ent.getUniqueId().toString() + ".owner").toString());
-						plugin.PointAdd(plugin.access_token, id, plugin.channel_name, price);
+						// Point subtraction from customer
+						plugin.PointSubtract(plugin.access_token, p.getUniqueId(), plugin.channel_name, price);
+						p.sendMessage("You have "
+								+ plugin.PointRequest(plugin.access_token, p.getUniqueId(), plugin.channel_name, true)
+								+ " KonaCoins left.");
+						p.getInventory()
+								.addItem(new ItemStack(e.getCurrentItem().getType(), e.getCurrentItem().getAmount()));
+						String itemName = e.getCurrentItem().getItemMeta().hasDisplayName() ? e.getCurrentItem().getItemMeta().getDisplayName() : 										plugin.formatStringWithSpaces(e.getCurrentItem().getType().getKey().getKey(), "_");
+						p.sendMessage(ChatColor.GREEN + "You've purchased "+ e.getCurrentItem().getAmount() + "x " + itemName + " for " + 
+								price + " " + plugin.getConfig().get("currency-name") + "!");
+						plugin.logToFile(LogType.Points, p.getName() + " {" + p.getUniqueId() + "} bought " + e.getCurrentItem().getAmount() +  " " + itemName + 
+								" for " + price + " "
+								+ plugin.getConfig().get("currency-name"));
+
+						// Point addition for owner
+						if (!plugin.shopkeeperData.getString(ent.getUniqueId() + ".type").equalsIgnoreCase("creative"))
+						{
+							plugin.LoggerInfo(plugin.shopkeeperData.getString(ent.getUniqueId() + ".type"));
+							UUID id = UUID.fromString(plugin.shopkeeperData
+									.get(ent.getUniqueId().toString() + ".owner").toString());
+							plugin.PointAdd(plugin.access_token, id, plugin.channel_name, price);
+						}
+					}
+					else
+					{
+						p.sendMessage(ChatColor.RED + "You do not have enough " + plugin.getConfig().get("currency-name") + " to purchase this!");
 					}
 				}
-				else
-				{
-					p.sendMessage(ChatColor.RED + "You do not have enough " + plugin.getConfig().get("currency-name") + " to purchase this!");
-				}
 			}
+			else
+				p.sendMessage(ChatColor.RED + plugin.getConfig().getString("unregistered-player-message"));
 		}
 		// ~~~~ShopkeeperEditHolder~~~~
 		if (e.getClickedInventory().getHolder() instanceof ShopkeeperEditHolder) {
-			// EDIT prices
-			if (e.getCurrentItem().getType() == Material.GOLD_NUGGET) {
+			// ROTATE the shopkeeper
+			if (e.getCurrentItem().getType() == Material.COMPASS) {
+				p.sendMessage(ChatColor.GOLD + "Please type in a value in degrees to rotate this shopkeeper.");
+				p.sendMessage(ChatColor.GOLD + "Sets the shopkeeper's rotation to the value provided.");
+				plugin.addToRotating(p);
+				p.setMetadata("shopkeeper", new FixedMetadataValue(plugin, ent));
+				p.closeInventory();
+			} // EDIT prices
+			else if (e.getCurrentItem().getType() == Material.GOLD_NUGGET) {
 				ShopkeeperPricesOpen(p);
 				// RENAME the shopkeeper
 			} else if (e.getCurrentItem().getType() == Material.NAME_TAG) {
@@ -258,13 +273,29 @@ public class LPMEventManager implements Listener {
 				p.sendMessage(ChatColor.GOLD + "Please type in a new name for your shopkeeper.");
 				plugin.addToRenaming(p);
 				p.setMetadata("shopkeeper", new FixedMetadataValue(plugin, ent));
+				p.closeInventory();
 				// DELETE the shopkeeper
 			} else if (e.getCurrentItem().getType() == Material.FIRE_CHARGE) {
 				ent.setInvulnerable(false);
 				LivingEntity le = (LivingEntity) ent;
+				plugin.shopkeeperData.set(ent.getUniqueId() + ".invulnerable", false);
 				le.damage(9000);
 				p.closeInventory();
-			}
+			} // CHANGE profession
+			else if (e.getCurrentItem().getType() == Material.EMERALD) {
+				p.sendMessage(ChatColor.GOLD + "Please type in a profession name to change this shopkeeper's look.");
+				p.sendMessage(ChatColor.GOLD + "Can be one of the following:");
+				p.sendMessage(ChatColor.GOLD + "Blacksmith, Butcher, Farmer, Librarian, Nitwit, Priest");
+				plugin.addToProfessionChange(p);
+				p.setMetadata("shopkeeper", new FixedMetadataValue(plugin, ent));
+				p.closeInventory();
+			} /*else if (e.getCurrentItem().getType() == Material.MUSIC_DISC_BLOCKS) {
+				if (plugin.shopkeeperData.getBoolean(ent.getUniqueId() + ".muted"))
+					plugin.shopkeeperData.set(ent.getUniqueId() + ".muted", false);
+				else
+					plugin.shopkeeperData.set(ent.getUniqueId() + ".muted", true);
+				
+			}*/
 		}
 		// ~~~~ShopkeeperPricesHolder~~~~
 		if (e.getClickedInventory().getHolder() instanceof ShopkeeperPricesHolder) {
@@ -316,16 +347,25 @@ public class LPMEventManager implements Listener {
 	public void ShopkeeperEditOpen(Player p, String name) {
 		Inventory inv = Bukkit.createInventory(new ShopkeeperEditHolder(), 9, name);
 
+		ItemStack rotate = newCustomItemStack(Material.COMPASS, 1, "Rotate Shopkeeper",
+				Arrays.asList("Allows you to rotate this shopkeeper."));
 		ItemStack delete = newCustomItemStack(Material.FIRE_CHARGE, 1, "Remove Shopkeeper",
 				Arrays.asList("Removes this shopkeeper."));
 		ItemStack priceAdjust = newCustomItemStack(Material.GOLD_NUGGET, 1, "Adjust Prices",
 				Arrays.asList("Allows you to adjust sale prices."));
 		ItemStack rename = newCustomItemStack(Material.NAME_TAG, 1, "Rename Shopkeeper", 
 				Arrays.asList("Allows you to rename this shopkeeper."));
+		ItemStack profession = newCustomItemStack(Material.EMERALD, 1, "Change Profession", 
+				Arrays.asList("Allows you to change this shopkeeper's profession."));
+		/*ItemStack mute = newCustomItemStack(Material.MUSIC_DISC_BLOCKS, 1, "Toggle Shopkeeper Sounds", 
+				Arrays.asList("Allows you to toggle whether this shopkeeper makes sound or not."));*/
 
+		inv.setItem(0, rotate);
 		inv.setItem(3, priceAdjust);
 		inv.setItem(4, rename);
 		inv.setItem(5, delete);
+		//inv.setItem(7, mute);
+		inv.setItem(8, profession);
 
 		p.openInventory(inv);
 	}
@@ -451,13 +491,24 @@ public class LPMEventManager implements Listener {
 	}
 	
 	@EventHandler
+	public void onEntityDamage(EntityDamageEvent e)
+	{
+		if (e.getEntity() instanceof LivingEntity && plugin.shopkeeperData.isSet(e.getEntity().getUniqueId().toString()) && 
+				plugin.shopkeeperData.getBoolean(e.getEntity().getUniqueId() + ".invulnerable"))
+		{
+			e.setCancelled(true);
+		}
+	}
+	
+	@EventHandler
 	public void onEntityDamageEntity(EntityDamageByEntityEvent e)
 	{
-		if (e.getDamager() instanceof Player && e.getEntity() instanceof LivingEntity)
+		if (e.getDamager() instanceof Player && e.getEntity() instanceof LivingEntity && plugin.shopkeeperData.isSet(e.getEntity().getUniqueId().toString()))
 		{
+			e.setCancelled(true);
 			LivingEntity entity = (LivingEntity) e.getEntity();
 			Player p = (Player) e.getDamager();
-			if (plugin.getAdminMap().contains(p) && plugin.shopkeeperData.isSet(e.getEntity().getUniqueId().toString()))
+			if (plugin.getAdminMap().contains(p))
 			{
 				ShopkeeperAdminDamageEvent event = new ShopkeeperAdminDamageEvent(plugin, entity, p);
 				Bukkit.getServer().getPluginManager().callEvent(event);
@@ -534,6 +585,16 @@ public class LPMEventManager implements Listener {
 			e.setCancelled(true);
 			plugin.RenameShopkeeper(e.getPlayer(), (LivingEntity) e.getPlayer().getMetadata("shopkeeper").get(0).value(), e.getMessage());
 			e.getPlayer().removeMetadata("shopkeeper", plugin);
+		}
+		if (plugin.getRotateMap().contains(e.getPlayer())) 
+		{
+			e.setCancelled(true);
+			plugin.RotateShopkeeper(e.getPlayer(), (LivingEntity) e.getPlayer().getMetadata("shopkeeper").get(0).value(), e.getMessage());
+		}
+		if (plugin.getProfessionMap().contains(e.getPlayer())) 
+		{
+			e.setCancelled(true);
+			plugin.ShopkeeperProfessionChange(e.getPlayer(), (LivingEntity) e.getPlayer().getMetadata("shopkeeper").get(0).value(), e.getMessage());
 		}
 	}
 }

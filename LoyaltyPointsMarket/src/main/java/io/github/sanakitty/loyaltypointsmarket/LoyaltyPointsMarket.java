@@ -30,6 +30,7 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -91,10 +92,6 @@ public final class LoyaltyPointsMarket extends JavaPlugin {
 			LoggerInfo("Debug Mode is active. Loyalty Points Market will print debug info to the console.");
 	}
 	
-	public void onDisable() {
-		getLogger().info("OnDisable has been invoked!");
-	}
-	
     public void saveCustomYml(FileConfiguration ymlConfig, File ymlFile) {
 	    try {
 		    ymlConfig.save(ymlFile);
@@ -116,14 +113,43 @@ public final class LoyaltyPointsMarket extends JavaPlugin {
 	}
 	
 	private List<Player> renaming = new ArrayList<Player>();
-	public List<Player> getRenameMap(){return adminmap;}
+	public List<Player> getRenameMap(){return renaming;}
 	
 	public void addToRenaming(Player p){
-		adminmap.add(p);
+		renaming.add(p);
 	}
 	
 	public void removeFromRenaming(Player p) {
-		adminmap.remove((Object) p);
+		renaming.remove((Object) p);
+	}
+	
+	private List<Player> rotating = new ArrayList<Player>();
+	public List<Player> getRotateMap(){return rotating;}
+	
+	public void addToRotating(Player p){
+		rotating.add(p);
+	}
+	
+	public void removeFromRotating(Player p) {
+		rotating.remove((Object) p);
+	}
+	
+	private List<Player> professionChange = new ArrayList<Player>();
+	public List<Player> getProfessionMap(){return professionChange;}
+	
+	public void addToProfessionChange(Player p){
+		professionChange.add(p);
+	}
+	
+	public void removeFromProfessionChange(Player p) {
+		professionChange.remove((Object) p);
+	}
+	
+	public void onDisable() {
+		adminmap.clear();
+		renaming.clear();
+		rotating.clear();
+		professionChange.clear();
 	}
 	
 	/**
@@ -171,12 +197,13 @@ public final class LoyaltyPointsMarket extends JavaPlugin {
 				break;
 		}
 		v.setAI(false);
-		v.setInvulnerable(true);
 		
 		//Creation of shopkeeper data
 		shopkeeperData.set(villagerID + ".name", v.getCustomName());
 		shopkeeperData.set(villagerID + ".owner", p.getUniqueId().toString());
 		shopkeeperData.set(villagerID + ".type", type.toString());
+		shopkeeperData.set(villagerID + ".invulnerable", true);
+		shopkeeperData.set(villagerID + ".muted", false);
 		shopkeeperData.set(villagerID + ".location.world", v.getWorld().getName());
 		shopkeeperData.set(villagerID + ".location.x", v.getLocation().getX());
 		shopkeeperData.set(villagerID + ".location.y", v.getLocation().getY());
@@ -206,6 +233,66 @@ public final class LoyaltyPointsMarket extends JavaPlugin {
 		shopkeeper.setCustomName(name);
 		p.sendMessage(ChatColor.GREEN + "Your shopkeeper has been renamed to " + name + "!");
 		removeFromRenaming(p);
+	}
+	
+	public void RotateShopkeeper(Player p, LivingEntity shopkeeper, String rotation)
+	{
+		try 
+		{
+			Location old = shopkeeper.getLocation();
+			Location loc = new Location(old.getWorld(), old.getX(), old.getY(), old.getZ(), Float.parseFloat(rotation), old.getPitch());
+			shopkeeper.teleport(loc);
+		}
+		catch (NumberFormatException exc)
+		{
+			p.sendMessage(ChatColor.RED + "The message " + rotation + " is not a valid rotation. Please type in a value from 0 to 360.");
+			return;
+		}
+		p.sendMessage(ChatColor.GREEN + "Set this shopkeeper's rotation to " + rotation + " degrees.");
+		removeFromRotating(p);
+	}
+	
+	public void ShopkeeperProfessionChange(Player p, LivingEntity shopkeeper, String profession)
+	{
+		Villager v = (Villager) shopkeeper;
+		switch (profession.toLowerCase())
+		{
+			case "blacksmith":
+				v.setProfession(Profession.BLACKSMITH);
+				removeFromProfessionChange(p);
+				p.sendMessage(ChatColor.GREEN + "Change this shopkeeper's profession to " + profession);
+				break;
+			case "butcher":
+				v.setProfession(Profession.BUTCHER);
+				removeFromProfessionChange(p);
+				p.sendMessage(ChatColor.GREEN + "Change this shopkeeper's profession to " + profession);
+				break;
+			case "farmer":
+				v.setProfession(Profession.FARMER);
+				removeFromProfessionChange(p);
+				p.sendMessage(ChatColor.GREEN + "Change this shopkeeper's profession to " + profession);
+				break;
+			case "librarian":
+				v.setProfession(Profession.LIBRARIAN);
+				removeFromProfessionChange(p);
+				p.sendMessage(ChatColor.GREEN + "Change this shopkeeper's profession to " + profession);
+				break;
+			case "nitwit":
+				v.setProfession(Profession.NITWIT);
+				removeFromProfessionChange(p);
+				p.sendMessage(ChatColor.GREEN + "Change this shopkeeper's profession to " + profession);
+				break;
+			case "priest":
+				v.setProfession(Profession.PRIEST);
+				removeFromProfessionChange(p);
+				p.sendMessage(ChatColor.GREEN + "Change this shopkeeper's profession to " + profession);
+				break;
+			default:
+				p.sendMessage(ChatColor.RED + "The profession " + profession + " is unrecognized.");
+				p.sendMessage(ChatColor.GOLD + "Can be one of the following:");
+				p.sendMessage(ChatColor.GOLD + "Blacksmith, Butcher, Farmer, Librarian, Nitwit, Priest");
+				break;
+		}
 	}
 	
 	/**

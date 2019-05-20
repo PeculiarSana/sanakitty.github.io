@@ -7,11 +7,14 @@ permissions:
    lpm.*:
       description: Gives access to all lpm commands.
       default: op
-   lpm.check:
-      description: Checks a user's KonaCoin count.
-      default: true
-   lpm.check.nonuser:
-      description: Allows the user to check someone else's KonaCoin count.
+   lpm.admin:
+      description: Allows the user to enter admin mode to check various info and data.
+      default: op 
+   lpm.check.other:
+      description: Allows the user to check someone else's point count.
+      default: op
+   lpm.points.modify:
+      description: Allows the user to modify someone's points.
       default: op
    lpm.shopkeeper.creative:
       description: Allows the user to create a creative shop.

@@ -14,7 +14,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.metadata.FixedMetadataValue;
 
-import io.github.sanakitty.loyaltypointsmarket.LoyaltyPointsMarket.ShopType;
 import io.github.sanakitty.loyaltypointsmarket.commands.CommandAddPlayer;
 
 public class LPMCommandExecutor implements CommandExecutor {
@@ -46,7 +45,7 @@ public class LPMCommandExecutor implements CommandExecutor {
 							else
 								p.sendMessage(ChatColor.GOLD + "You have " + result + " KonaCoins.");
 						} else if (args.length == 3) {
-							if (p.hasPermission("lpm.check.nonuser")) {
+							if (p.hasPermission("lpm.check.other")) {
 								@SuppressWarnings("deprecation")
 								UUID playerId = Bukkit.getPlayer(args[2]).getUniqueId();
 								String result = plugin.PointRequest(accessToken, playerId, channelName, true);
@@ -57,8 +56,7 @@ public class LPMCommandExecutor implements CommandExecutor {
 									p.sendMessage(
 											ChatColor.GOLD + "Twitch user " + args[2] + " has " + result + " KonaCoins.");
 							} else
-								p.sendMessage(ChatColor.RED
-										+ "You do not have permission to check another user's currency count.");
+								p.sendMessage(ChatColor.DARK_RED + "You do not have access to that command.");
 
 						}
 					} else if (args.length == 1) {
@@ -74,51 +72,67 @@ public class LPMCommandExecutor implements CommandExecutor {
 				} 
 				//SUBTRACT
 				else  if (args[1].equalsIgnoreCase("subtract")) {
-					if (args.length > 2) {
-						String username = args[2];
-						@SuppressWarnings("deprecation")
-						UUID playerId = Bukkit.getPlayer(username).getUniqueId();
+					if (sender instanceof Player) {
+						Player p = (Player) sender;
+						if (p.hasPermission("lpm.points.modify"))
+						{
+							if (args.length > 2) {
+								String username = args[2];
+								@SuppressWarnings("deprecation")
+								UUID playerId = Bukkit.getPlayer(username).getUniqueId();
 
-						Integer points = Integer.parseInt(args[3]);
+								Integer points = Integer.parseInt(args[3]);
 
-						plugin.PointSubtract(accessToken, playerId, channelName, points);
+								plugin.PointSubtract(accessToken, playerId, channelName, points);
 
-						if (sender instanceof Player)
-							sender.sendMessage("Subtracted " + points + " KonaCoins from Twitch User " + args[2] + ". "
-									+ args[2] + " has " + plugin.PointRequest(accessToken, playerId, channelName, true)
-									+ " KonaCoins left.");
-						else
-							Bukkit.getLogger()
-									.info("Subtracted " + points + " KonaCoins from Twitch User " + args[2] + ". " + args[2]
-											+ " has " + plugin.PointRequest(accessToken, playerId, channelName, true)
+								if (sender instanceof Player)
+									sender.sendMessage("Subtracted " + points + " KonaCoins from Twitch User " + args[2] + ". "
+											+ args[2] + " has " + plugin.PointRequest(accessToken, playerId, channelName, true)
 											+ " KonaCoins left.");
+								else
+									Bukkit.getLogger()
+											.info("Subtracted " + points + " KonaCoins from Twitch User " + args[2] + ". " + args[2]
+													+ " has " + plugin.PointRequest(accessToken, playerId, channelName, true)
+													+ " KonaCoins left.");
+							}
+						}
+						else
+							p.sendMessage(ChatColor.DARK_RED + "You do not have access to that command.");
 					}
 				}
 				//ADD
 				else  if (args[1].equalsIgnoreCase("add")) {
-					if (args.length > 2) {
-						String username = args[2];
-						@SuppressWarnings("deprecation")
-						UUID playerId = Bukkit.getPlayer(username).getUniqueId();
-
-						Integer points = Integer.parseInt(args[3]);
-
-						plugin.PointAdd(accessToken, playerId, channelName, points);
-
-						if (sender instanceof Player)
-							sender.sendMessage("Added " + points + " KonaCoins to Twitch User " + args[2] + ". "
-									+ args[2] + " now has " + plugin.PointRequest(accessToken, playerId, channelName, true)
-									+ " KonaCoins.");
-						else
-							Bukkit.getLogger()
-									.info("Added " + points + " KonaCoins to Twitch User " + args[2] + ". " + args[2]
-											+ " now has " + plugin.PointRequest(accessToken, playerId, channelName, true)
+					if (sender instanceof Player) {
+						Player p = (Player) sender;
+						if (p.hasPermission("lpm.points.modify"))
+						{
+							if (args.length > 2) {
+								String username = args[2];
+								@SuppressWarnings("deprecation")
+								UUID playerId = Bukkit.getPlayer(username).getUniqueId();
+			
+								Integer points = Integer.parseInt(args[3]);
+			
+								plugin.PointAdd(accessToken, playerId, channelName, points);
+			
+								if (sender instanceof Player)
+									sender.sendMessage("Added " + points + " KonaCoins to Twitch User " + args[2] + ". "
+											+ args[2] + " now has " + plugin.PointRequest(accessToken, playerId, channelName, true)
 											+ " KonaCoins.");
+								else
+									Bukkit.getLogger()
+											.info("Added " + points + " KonaCoins to Twitch User " + args[2] + ". " + args[2]
+													+ " now has " + plugin.PointRequest(accessToken, playerId, channelName, true)
+													+ " KonaCoins.");
+							}
+						}
+						else
+							p.sendMessage(ChatColor.DARK_RED + "You do not have access to that command.");
 					}
 				}
 			} else if (args[0].equalsIgnoreCase("request")) { // COMMAND: /lpm request
 				if ((sender instanceof Player)) {
-					sender.sendMessage("This command can only be run by the console.");
+					sender.sendMessage(ChatColor.DARK_RED + "This command can only be run by the console.");
 					return false;
 				} else if (args.length != 2) {
 					plugin.getLogger().log(Level.WARNING, "Please supply an authorization token.");
@@ -147,17 +161,22 @@ public class LPMCommandExecutor implements CommandExecutor {
 				else 
 				{
 					Player p = (Player) sender;
-					if (!plugin.getAdminMap().contains(p))
+					if (p.hasPermission("lpm.admin"))
 					{
-						p.sendMessage(ChatColor.GOLD
-								+ "Admin mode enabled.");
-						plugin.addToAdminList(p);
+						if (!plugin.getAdminMap().contains(p))
+						{
+							p.sendMessage(ChatColor.GOLD
+									+ "Admin mode enabled.");
+							plugin.addToAdminList(p);
+						}
+						else 
+						{
+							p.sendMessage(ChatColor.GOLD + "Deactivated admin mode.");
+							plugin.removeFromAdminList(p);
+						}
 					}
-					else 
-					{
-						p.sendMessage(ChatColor.GOLD + "Deactivated admin mode.");
-						plugin.removeFromAdminList(p);
-					}
+					else
+						p.sendMessage(ChatColor.DARK_RED + "You do not have access to that command.");
 				} 
 			}
 		}
