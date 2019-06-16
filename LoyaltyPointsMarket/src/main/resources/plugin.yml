@@ -21,7 +21,45 @@ permissions:
       default: op
 commands:
    lpm:
-      description: Requests access and refresh tokens.
+      description: Loyalty Points Market base command.
       usage: /<command>
-      permission: lpm.check
-      permission-message: You don't have the <permission> permission.
+   lpm request:
+      description: Requests access and refresh tokens.
+      usage: /<command> [authentication token]
+      permission: lpm.request
+      permission-message: This command can only be run by the console.
+   lpm player add:
+      description: Adds a player to the plugins' database on the server.
+      usage: /<command> [Minecraft Username] [Twitch Username]
+      permission: lpm.modifyplayer
+      permission-message: You do not have the <permission> permission.
+   lpm player edit:
+      description: Edits the Twitch username associated with a specified player.
+      usage: /<command> [Minecraft Username] [New Twitch Username]
+      permission: lpm.modifyplayer
+      permission-message: You do not have the <permission> permission.
+   lpm player remove:
+      description: Removes a player from the plugins' database on the server.
+      usage: /<command> 
+      permission: lpm.modifyplayer
+      permission-message: You do not have the <permission> permission.
+   lpm check:
+      description: Displays a player's loyalty point count.
+      usage: /<command> 
+      permission: lpm.checkothers
+      permission-message: You do not have the <permission> permission.
+   lpm points add:
+      description: Adds the specified amount of points to the given user.
+      usage: /<command> 
+      permission: lpm.points.modify
+      permission-message: You do not have the <permission> permission.
+   lpm points subtract:
+      description: Subtracts the specified amount of points from the given user.
+      usage: /<command> 
+      permission: lpm.points.modify
+      permission-message: You do not have the <permission> permission.
+   lpm shop new:
+      description: Gives the player the shop spawn item defined in the config, used to spawn a new Shopkeeper.
+      usage: /<command> [-c] [profession]
+      permission: lpm.shopkeeper.creative
+      permission-message: You do not have the <permission> permission.

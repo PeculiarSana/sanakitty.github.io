@@ -12,7 +12,6 @@ refresh-token: StaZHTW9mLRdOyuDZlGKo6ERjd9gsyTwUkPgRZ74
 # *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*
 # The channel name that the plugin should be attempting to connect to.
 channel-name: k0na_
-currency-name: Kona Coins
 unregistered-player-message: "You aren't currently registered for Loyalty Points Market on this server. Please contact an administrator to register you with your Twitch username."
 # *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*
 # SHOPKEEPER CONFIG
@@ -30,8 +29,22 @@ shop-creation-item-creative-name: "Spawn Creative Shopkeeper"
 # The lore given to the creative Shopkeeper spawn item.
 shop-creation-item-creative-lore: "Spawns a new Creative Shopkeeper"
 # Determines how many inventory slots a shop should have. Multiplied by 9 (A value of 1 is 9 slots, a value of 2 is 18, etc).
-shop-inventory-size: 9
+shop-inventory-size: 1
+# Determines how many inventory slots a creative shop should have. Multiplied by 9 (A value of 1 is 9 slots, a value of 2 is 18, etc).
+creative-shop-inventory-size: 3
 # Determines how many shops a player should be allowed to create to begin with.
 max-shops-per-player: 2
 # Determines how far from their linked chest a Shopkeeper should be allowed to be spawned.
 max-chest-distance: 10
+# *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*
+# CURRENCY CONFIG
+# *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*
+# The name of the currency to be used throughout the plugin.
+currency-name: Kona Coins
+# Enable the server payday system, which will disable the 'shop pay' command, and instead pay everyone on the server after the time set in payday-period.
+# Can be forced via the 'payday' command.
+payday: true
+# The time, in minutes, between paydays. Minimum of 15, as to not abuse the API's servers.
+payday-period: 60
+# The time, in minutes, that a player is unable to use the 'shop pay' command again. Minimum of 10, as to not abuse the API's servers.
+pay-cooldown: 60

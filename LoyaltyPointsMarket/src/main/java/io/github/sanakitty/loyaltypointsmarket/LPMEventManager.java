@@ -56,7 +56,7 @@ public class LPMEventManager implements Listener {
 	@EventHandler
 	public void onVillagerInventoryOpen(InventoryOpenEvent e) {
 		if (e.getInventory().getType() == InventoryType.MERCHANT && plugin.shopkeeperData
-				.contains(((Entity) e.getInventory().getHolder()).getUniqueId().toString())) {
+				.contains("shopkeepers." + ((Entity) e.getInventory().getHolder()).getUniqueId().toString())) {
 			e.setCancelled(true);
 		}
 	}
@@ -74,21 +74,21 @@ public class LPMEventManager implements Listener {
 			e.setCancelled(true);
 		}
 		
-		if (e.getRightClicked().getType() == EntityType.VILLAGER && e.getHand().equals(EquipmentSlot.HAND) && plugin.shopkeeperData.contains(e.getRightClicked().getUniqueId().toString())) 
+		if (e.getRightClicked().getType() == EntityType.VILLAGER && e.getHand().equals(EquipmentSlot.HAND) && plugin.shopkeeperData.contains("shopkeepers." + e.getRightClicked().getUniqueId().toString())) 
 		{
 			LivingEntity ent = (LivingEntity) e.getRightClicked();
-			UUID ownerUUID = UUID.fromString(plugin.shopkeeperData.getString(ent.getUniqueId() + ".owner"));
+			UUID ownerUUID = UUID.fromString(plugin.shopkeeperData.getString("shopkeepers." + ent.getUniqueId() + ".owner"));
 			p.setMetadata("shopkeeperID", new FixedMetadataValue(plugin, ent.getUniqueId()));
 			p.setMetadata("shopkeeperName", new FixedMetadataValue(plugin, ent.getCustomName()));
 
 			// Code to run if the player is currently debugging
-			if (plugin.getAdminMap().contains((Object) p)) 
+			if (p.isSneaking() && plugin.getAdminMap().contains(p)) 
 			{
 				ShopkeeperAdminInteractEvent adminInteract = new ShopkeeperAdminInteractEvent(plugin, ent, p);
 				Bukkit.getServer().getPluginManager().callEvent(adminInteract);
 			} 
 			// Code to run to edit the shopkeeper
-			else if (p.isSneaking() && p.getUniqueId().compareTo(UUID.fromString(plugin.shopkeeperData.get(ent.getUniqueId() + ".owner").toString())) == 0) 
+			else if (p.isSneaking() && p.getUniqueId().compareTo(UUID.fromString(plugin.shopkeeperData.get("shopkeepers." + ent.getUniqueId() + ".owner").toString())) == 0) 
 			{
 				// Adds a one tick delay to prevent issues
 				Bukkit.getServer().getScheduler().runTaskLater(plugin, new Runnable()
@@ -114,9 +114,8 @@ public class LPMEventManager implements Listener {
 			
 			// Code to run if the player is just opening the shop to buy
 			// Checks that the Player isn't sneaking, and isn't the owner OR is on the adminMap before allowing them to view the shop
-			else if (!p.isSneaking() && (p.getUniqueId().compareTo(ownerUUID) != 0 || plugin.getAdminMap().contains(p) || 					plugin.shopkeeperData.getString(ent.getUniqueId() + ".type").equalsIgnoreCase("creative")))
+			else if (!p.isSneaking() && (plugin.getAdminMap().contains(p) || p.getUniqueId().compareTo(ownerUUID) != 0 || plugin.shopkeeperData.getString("shopkeepers." + ent.getUniqueId() + ".type").equalsIgnoreCase("creative")))
 			{
-				plugin.LoggerInfo("Test");
 				Inventory inv = Bukkit.createInventory(new ShopkeeperShopHolder(), 27, ent.getCustomName());
 				// Adds a one tick delay to prevent issues
 				Bukkit.getServer().getScheduler().runTaskLater(plugin, new Runnable() 
@@ -128,9 +127,9 @@ public class LPMEventManager implements Listener {
 				}, 1);
 
 				Location loc = new Location(p.getWorld(),
-						Float.parseFloat(plugin.shopkeeperData.get(ent.getUniqueId() + ".chest-location.x").toString()),
-						Float.parseFloat(plugin.shopkeeperData.get(ent.getUniqueId() + ".chest-location.y").toString()),
-						Float.parseFloat(plugin.shopkeeperData.get(ent.getUniqueId() + ".chest-location.z").toString()));
+						Float.parseFloat(plugin.shopkeeperData.get("shopkeepers." + ent.getUniqueId() + ".chest-location.x").toString()),
+						Float.parseFloat(plugin.shopkeeperData.get("shopkeepers." + ent.getUniqueId() + ".chest-location.y").toString()),
+						Float.parseFloat(plugin.shopkeeperData.get("shopkeepers." + ent.getUniqueId() + ".chest-location.z").toString()));
 				
 				// Instantiates the shopkeeper's inventory based on his linked chest
 				if(ent.getWorld().getBlockAt(loc).getType() == Material.CHEST)
@@ -139,7 +138,7 @@ public class LPMEventManager implements Listener {
 					for (int i = 0; i < chest.getBlockInventory().getSize(); i++) 
 					{
 						ItemStack iS = chest.getBlockInventory().getItem(i);
-						String ymlLoc = ent.getUniqueId() + ".inventory." + i;
+						String ymlLoc = "shopkeepers." + ent.getUniqueId() + ".inventory." + i;
 						if (iS != null) 
 						{
 							if (!plugin.shopkeeperData.isSet(ymlLoc + ".price")) 
@@ -219,7 +218,7 @@ public class LPMEventManager implements Listener {
 			{
 				if (e.getCurrentItem().getType() != Material.AIR) {
 					int price = plugin.shopkeeperData
-							.getInt(ent.getUniqueId().toString() + ".inventory." + e.getSlot() + ".price");
+							.getInt("shopkeepers." + ent.getUniqueId().toString() + ".inventory." + e.getSlot() + ".price");
 					if (Integer.parseInt(plugin.PointRequest(plugin.access_token,
 							p.getUniqueId(), plugin.getConfig().getString("channel-name"), true)) >= price) 
 					{
@@ -238,12 +237,13 @@ public class LPMEventManager implements Listener {
 								+ plugin.getConfig().get("currency-name"));
 
 						// Point addition for owner
-						if (!plugin.shopkeeperData.getString(ent.getUniqueId() + ".type").equalsIgnoreCase("creative"))
+						if (!plugin.shopkeeperData.getString("shopkeepers." + ent.getUniqueId() + ".type").equalsIgnoreCase("creative"))
 						{
-							plugin.LoggerInfo(plugin.shopkeeperData.getString(ent.getUniqueId() + ".type"));
 							UUID id = UUID.fromString(plugin.shopkeeperData
-									.get(ent.getUniqueId().toString() + ".owner").toString());
-							plugin.PointAdd(plugin.access_token, id, plugin.channel_name, price);
+									.get("shopkeepers." + ent.getUniqueId().toString() + ".owner").toString());
+							plugin.shopkeeperData.set("shopkeepers." + ent.getUniqueId().toString() + ".storedPoints", 
+									plugin.shopkeeperData.getInt("shopkeepers." + ent.getUniqueId().toString() + ".storedPoints") + price);
+							plugin.saveCustomYml(plugin.shopkeeperData, plugin.shopkeepersFile);
 						}
 					}
 					else
@@ -278,7 +278,7 @@ public class LPMEventManager implements Listener {
 			} else if (e.getCurrentItem().getType() == Material.FIRE_CHARGE) {
 				ent.setInvulnerable(false);
 				LivingEntity le = (LivingEntity) ent;
-				plugin.shopkeeperData.set(ent.getUniqueId() + ".invulnerable", false);
+				plugin.shopkeeperData.set("shopkeepers." + ent.getUniqueId() + ".invulnerable", false);
 				le.damage(9000);
 				p.closeInventory();
 			} // CHANGE profession
@@ -303,7 +303,7 @@ public class LPMEventManager implements Listener {
 				ShopkeeperEditOpen(p, "Editing Shopkeeper");
 			} else {
 				ItemStack item = e.getCurrentItem();
-				ShopkeeperEditPriceOpen(p, item, plugin.shopkeeperData.getString(ent.getUniqueId().toString() + ".inventory." + p.getMetadata("slotID") + ".price"));
+				ShopkeeperEditPriceOpen(p, item, plugin.shopkeeperData.getString("shopkeepers." + ent.getUniqueId().toString() + ".inventory." + p.getMetadata("slotID") + ".price"));
 				p.setMetadata("slotID", new FixedMetadataValue(plugin, e.getSlot()));
 				editedItem = item;
 			}
@@ -311,7 +311,7 @@ public class LPMEventManager implements Listener {
 		// ~~~~ShopkeeperItemPriceHolder~~~~
 		if (e.getClickedInventory().getHolder() instanceof ShopkeeperItemPriceHolder) {
 			String slotNum = p.getMetadata("slotID").get(0).asString();
-			String ymlPrice = ent.getUniqueId().toString() + ".inventory." + slotNum + ".price";
+			String ymlPrice = "shopkeepers." + ent.getUniqueId().toString() + ".inventory." + slotNum + ".price";
 			if (e.getCurrentItem().getType() == Material.IRON_BLOCK) {
 				plugin.shopkeeperData.set(ymlPrice, plugin.shopkeeperData.getInt(ymlPrice) + 1);
 				ShopkeeperEditPriceOpen(p, editedItem, plugin.shopkeeperData
@@ -376,15 +376,15 @@ public class LPMEventManager implements Listener {
 		Inventory inv = Bukkit.createInventory(new ShopkeeperPricesHolder(), 4 * 9, "Editing shop prices");
 
 		Location loc = new Location(p.getWorld(),
-				Float.parseFloat(plugin.shopkeeperData.get(strId + ".chest-location.x").toString()),
-				Float.parseFloat(plugin.shopkeeperData.get(strId + ".chest-location.y").toString()),
-				Float.parseFloat(plugin.shopkeeperData.get(strId + ".chest-location.z").toString()));
+				Float.parseFloat(plugin.shopkeeperData.get("shopkeepers." + strId + ".chest-location.x").toString()),
+				Float.parseFloat(plugin.shopkeeperData.get("shopkeepers." + strId + ".chest-location.y").toString()),
+				Float.parseFloat(plugin.shopkeeperData.get("shopkeepers." + strId + ".chest-location.z").toString()));
 		Chest chest = (Chest) p.getWorld().getBlockAt(loc).getState();
 		for (int i = 0; i < chest.getBlockInventory().getSize(); i++) {
 			ItemStack iS = chest.getBlockInventory().getItem(i);
 			if (iS != null) {
 				addItem(inv, iS.getType(), iS.getAmount(), i,
-						plugin.shopkeeperData.getInt(strId + ".inventory." + i + ".price"));
+						plugin.shopkeeperData.getInt("shopkeepers." + strId + ".inventory." + i + ".price"));
 			}
 		}
 		ItemStack back = newCustomItemStack(Material.BARRIER, 1, "Go Back", null);
@@ -483,7 +483,7 @@ public class LPMEventManager implements Listener {
 
 	@EventHandler
 	public void onEntityDeath(EntityDeathEvent e) {
-		if (plugin.shopkeeperData.contains(e.getEntity().getUniqueId().toString()))
+		if (plugin.shopkeeperData.contains("shopkeepers." + e.getEntity().getUniqueId().toString()))
 		{
 			ShopkeeperDeathEvent deathEvent = new ShopkeeperDeathEvent(plugin, e.getEntity());
 			Bukkit.getServer().getPluginManager().callEvent(deathEvent);
@@ -493,8 +493,8 @@ public class LPMEventManager implements Listener {
 	@EventHandler
 	public void onEntityDamage(EntityDamageEvent e)
 	{
-		if (e.getEntity() instanceof LivingEntity && plugin.shopkeeperData.isSet(e.getEntity().getUniqueId().toString()) && 
-				plugin.shopkeeperData.getBoolean(e.getEntity().getUniqueId() + ".invulnerable"))
+		if (e.getEntity() instanceof LivingEntity && plugin.shopkeeperData.isSet("shopkeepers." + e.getEntity().getUniqueId().toString()) && 
+				plugin.shopkeeperData.getBoolean("shopkeepers." + e.getEntity().getUniqueId() + ".invulnerable"))
 		{
 			e.setCancelled(true);
 		}
@@ -503,13 +503,14 @@ public class LPMEventManager implements Listener {
 	@EventHandler
 	public void onEntityDamageEntity(EntityDamageByEntityEvent e)
 	{
-		if (e.getDamager() instanceof Player && e.getEntity() instanceof LivingEntity && plugin.shopkeeperData.isSet(e.getEntity().getUniqueId().toString()))
+		if (e.getDamager() instanceof Player && e.getEntity() instanceof LivingEntity && plugin.shopkeeperData.isSet("shopkeepers." + e.getEntity().getUniqueId().toString()))
 		{
 			e.setCancelled(true);
 			LivingEntity entity = (LivingEntity) e.getEntity();
 			Player p = (Player) e.getDamager();
 			if (plugin.getAdminMap().contains(p))
 			{
+				plugin.LoggerInfo("AdminMap contains player");
 				ShopkeeperAdminDamageEvent event = new ShopkeeperAdminDamageEvent(plugin, entity, p);
 				Bukkit.getServer().getPluginManager().callEvent(event);
 			}
@@ -525,13 +526,13 @@ public class LPMEventManager implements Listener {
 			plugin.LoggerInfo("Shopkeeper {" + entity.getUniqueId() + "} was removed");
 		}
 		plugin.logToFile(LogType.ShopkeeperRemove, "Shopkeeper {" + entity.getUniqueId() + "} was removed");
-		if (!plugin.shopkeeperData.getString(entity.getUniqueId() + ".type").equalsIgnoreCase("creative"))
+		if (!plugin.shopkeeperData.getString("shopkeepers." + entity.getUniqueId() + ".type").equalsIgnoreCase("creative"))
 		{
 			plugin.playerData.set(e.getOwnerUUID().toString() + ".shopkeepers", plugin.playerData.getInt(e.getOwnerUUID().toString() + ".shopkeepers") - 1);
 			plugin.saveCustomYml(plugin.playerData, plugin.playerFile);
 		}
 		
-		plugin.shopkeeperData.set(entity.getUniqueId().toString(), null);
+		plugin.shopkeeperData.set("shopkeepers." + entity.getUniqueId().toString(), null);
 		plugin.saveCustomYml(plugin.shopkeeperData, plugin.shopkeepersFile);
 	}
 	
@@ -540,21 +541,22 @@ public class LPMEventManager implements Listener {
 	{
 		Player p = e.getPlayer();
 		LivingEntity ent = e.getEntity();
+		String ymlLoc = "shopkeepers." + ent.getUniqueId();
 		p.sendMessage(ChatColor.GOLD + "Shopkeeper data:");
 		p.sendMessage(ChatColor.GOLD + "  id: " + ChatColor.RESET + ent.getUniqueId());
-		p.sendMessage(ChatColor.GOLD + "  name: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".name"));
-		p.sendMessage(ChatColor.GOLD + "  owner: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".owner"));
-		p.sendMessage(ChatColor.GOLD + "  type: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".type"));
+		p.sendMessage(ChatColor.GOLD + "  name: " + ChatColor.RESET + plugin.shopkeeperData.get(ymlLoc + ".name"));
+		p.sendMessage(ChatColor.GOLD + "  owner: " + ChatColor.RESET + plugin.shopkeeperData.get(ymlLoc + ".owner"));
+		p.sendMessage(ChatColor.GOLD + "  type: " + ChatColor.RESET + plugin.shopkeeperData.get(ymlLoc + ".type"));
 		p.sendMessage(ChatColor.GOLD + "  location: ");
-		p.sendMessage(ChatColor.GOLD + "    world: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".location.world"));
-		p.sendMessage(ChatColor.GOLD + "    x: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".location.x"));
-		p.sendMessage(ChatColor.GOLD + "    y: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".location.y"));
-		p.sendMessage(ChatColor.GOLD + "    z: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".location.z"));
+		p.sendMessage(ChatColor.GOLD + "    world: " + ChatColor.RESET + plugin.shopkeeperData.get(ymlLoc + ".location.world"));
+		p.sendMessage(ChatColor.GOLD + "    x: " + ChatColor.RESET + plugin.shopkeeperData.get(ymlLoc + ".location.x"));
+		p.sendMessage(ChatColor.GOLD + "    y: " + ChatColor.RESET + plugin.shopkeeperData.get(ymlLoc + ".location.y"));
+		p.sendMessage(ChatColor.GOLD + "    z: " + ChatColor.RESET + plugin.shopkeeperData.get(ymlLoc + ".location.z"));
 		p.sendMessage(ChatColor.GOLD + "  chest-location: ");
-		p.sendMessage(ChatColor.GOLD + "    world: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".chest-location.world"));
-		p.sendMessage(ChatColor.GOLD + "    x: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".chest-location.x"));
-		p.sendMessage(ChatColor.GOLD + "    y: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".chest-location.y"));
-		p.sendMessage(ChatColor.GOLD + "    z: " + ChatColor.RESET + plugin.shopkeeperData.get(ent.getUniqueId() + ".chest-location.z"));
+		p.sendMessage(ChatColor.GOLD + "    world: " + ChatColor.RESET + plugin.shopkeeperData.get(ymlLoc + ".chest-location.world"));
+		p.sendMessage(ChatColor.GOLD + "    x: " + ChatColor.RESET + plugin.shopkeeperData.get(ymlLoc + ".chest-location.x"));
+		p.sendMessage(ChatColor.GOLD + "    y: " + ChatColor.RESET + plugin.shopkeeperData.get(ymlLoc + ".chest-location.y"));
+		p.sendMessage(ChatColor.GOLD + "    z: " + ChatColor.RESET + plugin.shopkeeperData.get(ymlLoc + ".chest-location.z"));
 	}
 	
 	@EventHandler
@@ -563,7 +565,7 @@ public class LPMEventManager implements Listener {
 		if (e.getPlayer().isSneaking())
 		{
 			// Normal shopkeeper edit inventory
-			if (plugin.shopkeeperData.getString(e.getEntity().getUniqueId() + ".type").equalsIgnoreCase("normal"))
+			if (plugin.shopkeeperData.getString("shopkeepers." + e.getEntity().getUniqueId() + ".type").equalsIgnoreCase("normal"))
 			{
 				// Adds a one tick delay to prevent issues
 				Bukkit.getServer().getScheduler().runTaskLater(plugin, new Runnable()

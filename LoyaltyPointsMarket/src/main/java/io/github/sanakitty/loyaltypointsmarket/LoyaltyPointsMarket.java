@@ -38,8 +38,12 @@ import org.bukkit.entity.Villager;
 import org.bukkit.entity.Villager.Profession;
 import org.bukkit.permissions.Permission;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitScheduler;
 
 import net.md_5.bungee.api.ChatColor;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.ComponentBuilder;
+import net.md_5.bungee.api.chat.TextComponent;
 
 public final class LoyaltyPointsMarket extends JavaPlugin {
 	
@@ -90,6 +94,15 @@ public final class LoyaltyPointsMarket extends JavaPlugin {
 		
 		if (debug)
 			LoggerInfo("Debug Mode is active. Loyalty Points Market will print debug info to the console.");
+		
+		//Payday
+		BukkitScheduler scheduler = Bukkit.getServer().getScheduler();
+        scheduler.scheduleSyncRepeatingTask(this, new Runnable() {
+            @Override
+            public void run() {
+                Payday();
+            }
+        }, 0, (int) (getConfig().getDouble("payday-period") * 60) * 20);
 	}
 	
     public void saveCustomYml(FileConfiguration ymlConfig, File ymlFile) {
@@ -199,21 +212,25 @@ public final class LoyaltyPointsMarket extends JavaPlugin {
 		v.setAI(false);
 		
 		//Creation of shopkeeper data
-		shopkeeperData.set(villagerID + ".name", v.getCustomName());
-		shopkeeperData.set(villagerID + ".owner", p.getUniqueId().toString());
-		shopkeeperData.set(villagerID + ".type", type.toString());
-		shopkeeperData.set(villagerID + ".invulnerable", true);
-		shopkeeperData.set(villagerID + ".muted", false);
-		shopkeeperData.set(villagerID + ".location.world", v.getWorld().getName());
-		shopkeeperData.set(villagerID + ".location.x", v.getLocation().getX());
-		shopkeeperData.set(villagerID + ".location.y", v.getLocation().getY());
-		shopkeeperData.set(villagerID + ".location.z", v.getLocation().getZ());
-		shopkeeperData.set(villagerID + ".chest-location.world", chest.getWorld().getName());
-		shopkeeperData.set(villagerID + ".chest-location.x", chest.getLocation().getX());
-		shopkeeperData.set(villagerID + ".chest-location.y", chest.getLocation().getY());
-		shopkeeperData.set(villagerID + ".chest-location.z", chest.getLocation().getZ());
-		shopkeeperData.set(villagerID + ".inventory", null);
+		shopkeeperData.set("shopkeepers." + villagerID + ".name", v.getCustomName());
+		shopkeeperData.set("shopkeepers." + villagerID + ".owner", p.getUniqueId().toString());
+		shopkeeperData.set("shopkeepers." + villagerID + ".type", type.toString());
+		shopkeeperData.set("shopkeepers." + villagerID + ".invulnerable", true);
+		shopkeeperData.set("shopkeepers." + villagerID + ".muted", false);
+		shopkeeperData.set("shopkeepers." + villagerID + ".location.world", v.getWorld().getName());
+		shopkeeperData.set("shopkeepers." + villagerID + ".location.x", v.getLocation().getX());
+		shopkeeperData.set("shopkeepers." + villagerID + ".location.y", v.getLocation().getY());
+		shopkeeperData.set("shopkeepers." + villagerID + ".location.z", v.getLocation().getZ());
+		shopkeeperData.set("shopkeepers." + villagerID + ".chest-location.world", chest.getWorld().getName());
+		shopkeeperData.set("shopkeepers." + villagerID + ".chest-location.x", chest.getLocation().getX());
+		shopkeeperData.set("shopkeepers." + villagerID + ".chest-location.y", chest.getLocation().getY());
+		shopkeeperData.set("shopkeepers." + villagerID + ".chest-location.z", chest.getLocation().getZ());
+		shopkeeperData.set("shopkeepers." + villagerID + ".inventory", null);
+		shopkeeperData.set("shopkeepers." + villagerID + ".storedPoints", 0);
 		saveCustomYml(shopkeeperData, shopkeepersFile);
+		
+		playerData.set(p.getUniqueId().toString() + ".shopkeepers" , playerData.getInt(p.getUniqueId().toString() + ".shopkeepers") + 1);
+		saveCustomYml(playerData, playerFile);
 		
 		logToFile(LogType.ShopkeeperSpawn, "Shopkeeper {" + villagerID + "} spawned at " + v.getLocation());
 		
@@ -228,7 +245,7 @@ public final class LoyaltyPointsMarket extends JavaPlugin {
 	
 	public void RenameShopkeeper(Player p, LivingEntity shopkeeper, String name)
 	{
-		shopkeeperData.set(shopkeeper.getUniqueId() + ".name", name);
+		shopkeeperData.set("shopkeepers." + shopkeeper.getUniqueId() + ".name", name);
 		saveCustomYml(shopkeeperData, shopkeepersFile);
 		shopkeeper.setCustomName(name);
 		p.sendMessage(ChatColor.GREEN + "Your shopkeeper has been renamed to " + name + "!");
@@ -352,6 +369,33 @@ public final class LoyaltyPointsMarket extends JavaPlugin {
             buff.append(StringUtils.capitalize(str.toLowerCase()) + " ");
         }
         return buff.toString().substring(0, buff.toString().length() - 1);
+	}
+	
+	/**
+	 * Checks all shopkeepers that have stored points, and pays their respective owners.
+	 */
+	@SuppressWarnings("deprecation")
+	public void Payday()
+	{
+		for (Player player : getServer().getOnlinePlayers())
+		{
+
+			player.sendTitle(" ", ChatColor.GOLD + "Payday!");
+		}
+		
+		for (String key : shopkeeperData.getConfigurationSection("shopkeepers").getKeys(false))
+		{
+			if (shopkeeperData.getInt("shopkeepers." + key + ".storedPoints") > 0)
+			{
+				Player p = Bukkit.getPlayer(UUID.fromString(shopkeeperData.getString("shopkeepers." + key + ".owner")));
+				PointAdd(access_token, UUID.fromString(shopkeeperData.getString("shopkeepers." + key + ".owner")), channel_name, shopkeeperData.getInt("shopkeepers." + key + ".storedPoints"));
+				p.sendMessage("You've received " + shopkeeperData.getInt("shopkeepers." + key + ".storedPoints") + " " + 
+				getConfig().getString("currency-name") + " from your shopkeeper '" + shopkeeperData.getString("shopkeepers." + key + ".name") + "'!");
+				
+				shopkeeperData.set("shopkeepers." + key + ".storedPoints", 0);
+				saveCustomYml(shopkeeperData, shopkeepersFile);
+			}
+		}
 	}
 	
 	//-----------------------------------------------HTTPS Requests-----------------------------------------------//

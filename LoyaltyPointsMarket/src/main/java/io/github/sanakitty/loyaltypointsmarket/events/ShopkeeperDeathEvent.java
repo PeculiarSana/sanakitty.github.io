@@ -54,7 +54,7 @@ public class ShopkeeperDeathEvent extends Event
 	public UUID getOwnerUUID()
 	{
 		Bukkit.getLogger().info(plugin.getName());
-		return UUID.fromString(plugin.shopkeeperData.getString(entity.getUniqueId() + ".owner"));
+		return UUID.fromString(plugin.shopkeeperData.getString("shopkeepers." + entity.getUniqueId() + ".owner"));
 	}
 	
 	/**
@@ -65,6 +65,6 @@ public class ShopkeeperDeathEvent extends Event
 	public Location getDeathLocation()
 	{
 		Bukkit.getLogger().info(plugin.getName());
-		return (Location) plugin.shopkeeperData.get(entity.getUniqueId() + ".location");
+		return (Location) plugin.shopkeeperData.get("shopkeepers." + entity.getUniqueId() + ".location");
 	}
 }
