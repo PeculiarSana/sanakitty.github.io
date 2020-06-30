@@ -1,6 +1,8 @@
 package io.github.sanakitty.loyaltypointsmarket;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -116,7 +118,7 @@ public class LPMEventManager implements Listener {
 			// Checks that the Player isn't sneaking, and isn't the owner OR is on the adminMap before allowing them to view the shop
 			else if (!p.isSneaking() && (plugin.getAdminMap().contains(p) || p.getUniqueId().compareTo(ownerUUID) != 0 || plugin.shopkeeperData.getString("shopkeepers." + ent.getUniqueId() + ".type").equalsIgnoreCase("creative")))
 			{
-				Inventory inv = Bukkit.createInventory(new ShopkeeperShopHolder(), 27, ent.getCustomName());
+				Inventory inv = ShopkeeperShopOpen(p, ent.getCustomName());
 				// Adds a one tick delay to prevent issues
 				Bukkit.getServer().getScheduler().runTaskLater(plugin, new Runnable() 
 				{
@@ -216,41 +218,101 @@ public class LPMEventManager implements Listener {
 		if (e.getClickedInventory().getHolder() instanceof ShopkeeperShopHolder) {
 			if (plugin.playerData.isSet(p.getUniqueId().toString()))
 			{
-				if (e.getCurrentItem().getType() != Material.AIR) {
-					int price = plugin.shopkeeperData
-							.getInt("shopkeepers." + ent.getUniqueId().toString() + ".inventory." + e.getSlot() + ".price");
-					if (Integer.parseInt(plugin.PointRequest(plugin.access_token,
-							p.getUniqueId(), plugin.getConfig().getString("channel-name"), true)) >= price) 
-					{
-						// Point subtraction from customer
-						plugin.PointSubtract(plugin.access_token, p.getUniqueId(), plugin.channel_name, price);
-						p.sendMessage("You have "
-								+ plugin.PointRequest(plugin.access_token, p.getUniqueId(), plugin.channel_name, true)
-								+ " KonaCoins left.");
-						p.getInventory()
-								.addItem(new ItemStack(e.getCurrentItem().getType(), e.getCurrentItem().getAmount()));
-						String itemName = e.getCurrentItem().getItemMeta().hasDisplayName() ? e.getCurrentItem().getItemMeta().getDisplayName() : 										plugin.formatStringWithSpaces(e.getCurrentItem().getType().getKey().getKey(), "_");
-						p.sendMessage(ChatColor.GREEN + "You've purchased "+ e.getCurrentItem().getAmount() + "x " + itemName + " for " + 
-								price + " " + plugin.getConfig().get("currency-name") + "!");
-						plugin.logToFile(LogType.Points, p.getName() + " {" + p.getUniqueId() + "} bought " + e.getCurrentItem().getAmount() +  " " + itemName + 
-								" for " + price + " "
-								+ plugin.getConfig().get("currency-name"));
-
-						// Point addition for owner
-						if (!plugin.shopkeeperData.getString("shopkeepers." + ent.getUniqueId() + ".type").equalsIgnoreCase("creative"))
+				if (plugin.shopkeeperData.getString("shopkeepers." + ent.getUniqueId().toString() + ".type").equalsIgnoreCase("creative"))
+				{
+					if (e.getCurrentItem().getType() != Material.AIR) {
+						int price = plugin.shopkeeperData
+								.getInt("shopkeepers." + ent.getUniqueId().toString() + ".inventory." + e.getSlot() + ".price");
+						if (Integer.parseInt(plugin.PointRequest(plugin.access_token,
+								p.getUniqueId(), plugin.getConfig().getString("channel-name"), true)) >= price) 
 						{
-							UUID id = UUID.fromString(plugin.shopkeeperData
-									.get("shopkeepers." + ent.getUniqueId().toString() + ".owner").toString());
-							plugin.shopkeeperData.set("shopkeepers." + ent.getUniqueId().toString() + ".storedPoints", 
-									plugin.shopkeeperData.getInt("shopkeepers." + ent.getUniqueId().toString() + ".storedPoints") + price);
-							plugin.saveCustomYml(plugin.shopkeeperData, plugin.shopkeepersFile);
+							// Point subtraction from customer
+							plugin.PointSubtract(plugin.access_token, p.getUniqueId(), plugin.channel_name, price);
+							p.sendMessage("You have "
+									+ plugin.PointRequest(plugin.access_token, p.getUniqueId(), plugin.channel_name, true)
+									+ " KonaCoins left.");
+							p.getInventory()
+									.addItem(new ItemStack(e.getCurrentItem().getType(), e.getCurrentItem().getAmount()));
+							String itemName = e.getCurrentItem().getItemMeta().hasDisplayName() ? e.getCurrentItem().getItemMeta().getDisplayName() : 										plugin.formatStringWithSpaces(e.getCurrentItem().getType().getKey().getKey(), "_");
+							p.sendMessage(ChatColor.GREEN + "You've purchased "+ e.getCurrentItem().getAmount() + "x " + itemName + " for " + 
+									price + " " + plugin.getConfig().get("currency-name") + "!");
+							plugin.logToFile(LogType.Points, p.getName() + " {" + p.getUniqueId() + "} bought " + e.getCurrentItem().getAmount() +  " " + itemName + 
+									" for " + price + " "
+									+ plugin.getConfig().get("currency-name"));
+
+							// Point addition for owner
+							if (!plugin.shopkeeperData.getString("shopkeepers." + ent.getUniqueId() + ".type").equalsIgnoreCase("creative"))
+							{
+								UUID id = UUID.fromString(plugin.shopkeeperData
+										.get("shopkeepers." + ent.getUniqueId().toString() + ".owner").toString());
+								plugin.shopkeeperData.set("shopkeepers." + ent.getUniqueId().toString() + ".storedPoints", 
+										plugin.shopkeeperData.getInt("shopkeepers." + ent.getUniqueId().toString() + ".storedPoints") + price);
+								plugin.saveCustomYml(plugin.shopkeeperData, plugin.shopkeepersFile);
+							}
+						}
+						else
+						{
+							p.sendMessage(ChatColor.RED + "You do not have enough " + plugin.getConfig().get("currency-name") + " to purchase this!");
 						}
 					}
-					else
+				}
+				else if (plugin.shopkeeperData.getString("shopkeepers." + ent.getUniqueId().toString() + ".type").equalsIgnoreCase("normal"))
+				{
+					//If the player clicks on the Emerald to buy out their cart
+					if (e.getCurrentItem().getType() == Material.EMERALD && e.getCurrentItem().getItemMeta().getDisplayName() == "Buy Cart")
 					{
-						p.sendMessage(ChatColor.RED + "You do not have enough " + plugin.getConfig().get("currency-name") + " to purchase this!");
+						int totalPrice = 0;
+						ArrayList<ItemStack> itemList = null;
+						for(int i = plugin.getConfig().getInt("shop-inventory-size") * 9 + 9; i < plugin.getConfig().getInt("shop-inventory-size") * 9 + 18; i++)
+						{
+							totalPrice += plugin.shopkeeperData.getInt("shopkeepers." + ent.getUniqueId().toString() + ".inventory." + i + ".price");
+							itemList.add(e.getClickedInventory().getItem(i));
+						}
+						//Check if the player has enough points, then subtract
+						if (Integer.parseInt(plugin.PointRequest(plugin.access_token,
+								p.getUniqueId(), plugin.getConfig().getString("channel-name"), true)) >= totalPrice) 
+						{
+							for (ItemStack is : itemList)
+							{
+								if (p.getInventory().addItem(is) != null)
+									return;
+							}
+							plugin.LoggerInfo("test");
+							plugin.PointSubtract(plugin.access_token, p.getUniqueId(), plugin.channel_name, totalPrice);
+							p.sendMessage("You have "
+									+ plugin.PointRequest(plugin.access_token, p.getUniqueId(), plugin.channel_name, true)
+									+ " KonaCoins left.");
+						}
+						
+					}
+					else if (e.getCurrentItem().getType() != Material.AIR) 
+					{
+						ItemStack currentItem = new ItemStack(e.getCurrentItem().getType(), 1);
+						int price = plugin.shopkeeperData
+								.getInt("shopkeepers." + ent.getUniqueId().toString() + ".inventory." + e.getSlot() + ".price");
+						for (int i = plugin.getConfig().getInt("shop-inventory-size") * 9 + 9; i < plugin.getConfig().getInt("shop-inventory-size") * 9 + 18; i++)
+						{
+							//Add to a stack already in the shopping cart if it exists
+							if (e.getClickedInventory().getItem(i) != null && e.getClickedInventory().getItem(i).getType() == currentItem.getType())
+							{
+								ItemStack slot = new ItemStack(e.getClickedInventory().getItem(i).getType(), e.getClickedInventory().getItem(i).getAmount() + 1);
+								e.getClickedInventory().setItem(i, slot);
+								e.getCurrentItem().setAmount(e.getCurrentItem().getAmount() - 1);
+								return;
+							}
+							
+							//Add a new item stack in the cart
+							else if (e.getClickedInventory().getItem(i) == null)
+							{
+								e.getClickedInventory().setItem(i, currentItem);
+								e.getCurrentItem().setAmount(e.getCurrentItem().getAmount() - 1);
+								return;
+							}
+						}
 					}
 				}
+				else
+					plugin.LoggerInfo("Error: Shopkeeper does not have a type set.");
 			}
 			else
 				p.sendMessage(ChatColor.RED + plugin.getConfig().getString("unregistered-player-message"));
@@ -344,6 +406,30 @@ public class LPMEventManager implements Listener {
 	}
 
 	// -------------------------CUSTOM INVENTORY METHODS-------------------------
+	public Inventory ShopkeeperShopOpen(Player p, String name) 
+	{
+		Inventory inv = Bukkit.createInventory(new ShopkeeperShopHolder(), (plugin.getConfig().getInt("shop-inventory-size") * 9) + 27, name);
+		
+		ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE, 1);
+		ItemMeta meta = filler.getItemMeta();
+		meta.setDisplayName("");
+		filler.setItemMeta(meta);
+		
+		Integer firstIndex = (plugin.getConfig().getInt("shop-inventory-size") * 9);
+		
+		for (int i = firstIndex; i < firstIndex + 9; i++)
+		{
+			inv.setItem(i, filler);
+		}
+		
+		ItemStack buy = newCustomItemStack(Material.EMERALD, 1, "Buy Cart", Arrays.asList("Purchase all items currently in your shopping cart."));
+		ItemStack clear = newCustomItemStack(Material.FIRE, 1, "Clear Cart", Arrays.asList("Clears your shopping cart."));
+		inv.setItem((plugin.getConfig().getInt("shop-inventory-size") * 9) + 18 + 3, clear);
+		inv.setItem((plugin.getConfig().getInt("shop-inventory-size") * 9) + 18 + 5, buy);
+		
+		return inv;
+	}
+	
 	public void ShopkeeperEditOpen(Player p, String name) {
 		Inventory inv = Bukkit.createInventory(new ShopkeeperEditHolder(), 9, name);
 

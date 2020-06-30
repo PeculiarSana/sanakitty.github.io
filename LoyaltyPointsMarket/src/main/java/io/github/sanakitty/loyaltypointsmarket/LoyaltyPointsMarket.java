@@ -96,13 +96,16 @@ public final class LoyaltyPointsMarket extends JavaPlugin {
 			LoggerInfo("Debug Mode is active. Loyalty Points Market will print debug info to the console.");
 		
 		//Payday
-		BukkitScheduler scheduler = Bukkit.getServer().getScheduler();
-        scheduler.scheduleSyncRepeatingTask(this, new Runnable() {
-            @Override
-            public void run() {
-                Payday();
-            }
-        }, 0, (int) (getConfig().getDouble("payday-period") * 60) * 20);
+		if (getConfig().getBoolean("payday"))
+		{
+			BukkitScheduler scheduler = Bukkit.getServer().getScheduler();
+	        scheduler.scheduleSyncRepeatingTask(this, new Runnable() {
+	            @Override
+	            public void run() {
+	                Payday();
+	            }
+	        }, 0, (int) (getConfig().getDouble("payday-period") * 60) * 20);
+		}
 	}
 	
     public void saveCustomYml(FileConfiguration ymlConfig, File ymlFile) {
